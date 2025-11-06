@@ -31,6 +31,9 @@ public class Main {
             final ChafonRfidDevice.Metadata info = device.getInformation();
             System.out.println("Device info: " + info);
 
+            device.setAntenna(1, true, true);
+            device.setAntenna(4, true, true);
+
             boolean started = device.start();
             System.out.println("Device started: " + started);
 

@@ -220,20 +220,24 @@ public class ChafonRfidDevice implements RfidDevice {
         return true;
     }
 
-    public boolean setAntenna(final int antenna, final boolean enabled) throws ChafonDeviceException {
-        if (antenna < 0 || antenna > antennas) {
-            throw new IllegalArgumentException(String.format("Antenna must be between 0 and %d.", antennas));
+    public boolean setAntenna(final int antenna, final boolean enabled, final boolean persist) throws ChafonDeviceException {
+        if (antenna < 1 || antenna > antennas) {
+            throw new IllegalArgumentException(String.format("Antenna must be between 1 and %d.", antennas));
         }
+        final int setOnce = persist ? 0 : 1; // 0 = save across power-off, 1 = do NOT save
 
-        final int arg1 = enabled ? 1 : 0; // 1 - indicates that it will not be saved when power off, 0 - indicates power-off save
-        final int arg2 = antenna;
+        // Read current mask from device (replace with your SDK call)
+        final Metadata info = getInformation();
+        final int currentMask = info.getAntennaMask();
 
-        final int res = reader.SetAntenna(arg1, arg2);
+        final int bit = 1 << (antenna - 1);
+        final int newMask = enabled ? (currentMask | bit) : (currentMask & ~bit);
+
+        final int res = reader.SetAntenna(setOnce, newMask);
         final ChafonDeviceStatus status = ChafonDeviceStatus.of(res);
         if (!status.isSuccess()) {
             throw ChafonDeviceException.of(status);
         }
-
         return true;
     }
 

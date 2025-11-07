@@ -1,5 +1,7 @@
 package com.contare.chafon;
 
+import com.contare.core.exceptions.RfidDeviceException;
+
 import java.util.Objects;
 
 /**
@@ -18,7 +20,7 @@ import java.util.Objects;
  * - Input ints are treated as unsigned bytes via code & 0xFF.
  * - 0x00 is considered success and will NOT cause throwIfError(...) to throw.
  */
-public final class ChafonDeviceException extends Exception {
+public final class ChafonDeviceException extends RfidDeviceException {
 
     private final ChafonDeviceStatus status;
 

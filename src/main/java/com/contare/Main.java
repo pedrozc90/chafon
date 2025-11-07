@@ -1,7 +1,8 @@
 package com.contare;
 
-import com.contare.chafon.ChafonDeviceException;
 import com.contare.chafon.ChafonRfidDevice;
+import com.contare.chafon.ToggleFrequencyController;
+import com.contare.core.exceptions.RfidDeviceException;
 import com.contare.core.objects.Options;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
@@ -37,13 +38,16 @@ public class Main {
             boolean started = device.start();
             System.out.println("Device started: " + started);
 
+            final ToggleFrequencyController toggler = new ToggleFrequencyController(device, 1_000);
+            toggler.start();
+
             latch.await();
+        } catch (RfidDeviceException e) {
+            final String stackTrace = ExceptionUtils.getStackTrace(e);
+            System.err.println("Device error. Reason: " + stackTrace);
         } catch (IOException e) {
             final String stackTrace = ExceptionUtils.getStackTrace(e);
             System.err.println("IO error. Reason " + stackTrace);
-        } catch (ChafonDeviceException e) {
-            final String stackTrace = ExceptionUtils.getStackTrace(e);
-            System.err.println("Device error. Reason: " + stackTrace);
         } catch (InterruptedException e) {
             final String stackTrace = ExceptionUtils.getStackTrace(e);
             System.err.println("Interrupted while waiting for device. Reason: " + stackTrace);

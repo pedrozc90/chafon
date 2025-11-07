@@ -56,7 +56,7 @@ public class ChafonRfidDevice implements RfidDevice {
                 System.out.println("Device frequency has been updated");
             }
 
-            final boolean pUpdated = this.setPower(15);
+            final boolean pUpdated = this.setPower(30);
             if (pUpdated) {
                 System.out.println("Device power has been updated");
             }
@@ -65,6 +65,10 @@ public class ChafonRfidDevice implements RfidDevice {
             if (bUpdated) {
                 System.out.println("Device beep has been updated");
             }
+
+            // final ReaderParameter params = reader.GetInventoryParameter();
+            // params.SetScanTime(255);
+            // reader.SetInventoryParameter(params);
 
             final boolean started = this.startRead();
             if (started) {
@@ -81,15 +85,19 @@ public class ChafonRfidDevice implements RfidDevice {
 
     @Override
     public boolean stop() {
+        final long start = System.currentTimeMillis();
         System.out.println("Stopping device");
         if (reader != null) {
             reader.StopRead(); // this blocks until the reader thread finishes (per SDK behaviour)
         }
+        final long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("Device stopped in %d ms%n", elapsed);
         return true;
     }
 
     @Override
     public void close() throws IOException {
+        final long start = System.currentTimeMillis();
         System.out.println("Closing device");
         this.stop();
         if (reader != null) {
@@ -97,6 +105,8 @@ public class ChafonRfidDevice implements RfidDevice {
                 reader.DisConnect();
             }
         }
+        final long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("Device closed in %d ms%n", elapsed);
     }
 
     // API
@@ -170,6 +180,8 @@ public class ChafonRfidDevice implements RfidDevice {
      * Set frequency by preset name (e.g. "US", "BRAZIL_A", "BRAZIL_B", "EU", "CHINESE_2").
      */
     public boolean setFrequency(final Frequency freq) throws ChafonDeviceException {
+        final long start = System.currentTimeMillis();
+
         // SDK SetRegion order: (band, maxfre, minfre)
         int bandId = freq.getBandId();
         int maxIndex = freq.getMaxIndex();
@@ -182,7 +194,8 @@ public class ChafonRfidDevice implements RfidDevice {
         }
 
         // Log what we actually set
-        System.out.printf("SetRegion: band=%d indices=%d..%d frequency=%.3f..%.3f MHz%n", bandId, minIndex, maxIndex, freq.getMinFrequency(), freq.getMaxFrequency());
+        final long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("SetRegion: band=%d indices=%d..%d frequency=%.3f..%.3f MHz (%d ms)%n", bandId, minIndex, maxIndex, freq.getMinFrequency(), freq.getMaxFrequency(), elapsed);
 
         return true;
     }

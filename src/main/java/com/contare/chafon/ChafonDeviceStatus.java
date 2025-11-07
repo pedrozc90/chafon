@@ -1,4 +1,3 @@
-
 package com.contare.chafon;
 
 import java.util.Collections;

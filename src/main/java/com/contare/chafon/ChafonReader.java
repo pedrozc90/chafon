@@ -8,6 +8,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.ToString;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 public class ChafonReader {
@@ -481,18 +485,15 @@ public class ChafonReader {
 
             mWorking = true;
 
+            final List<Frequency> frequencies = List.of(Frequency.BRAZIL_A, Frequency.BRAZIL_B);
+            final AtomicInteger freqIndex = new AtomicInteger(0);
+            final AtomicBoolean settingFrequency = new AtomicBoolean(false);
+
+
             mThread = new Thread(() -> {
                 long lastToggleTime = System.currentTimeMillis();
                 byte Target = 0;
                 int index = 0;
-
-                // Prepare reader parameter reference (will be re-read inside loop in case user updates it)
-                try {
-                    // initial region set
-                    setFrequency(currentIsA ? Frequency.BRAZIL_A : Frequency.BRAZIL_B);
-                } catch (Exception e) {
-                    System.err.println("Failed initial SetRegion: " + e.getMessage());
-                }
 
                 while (mWorking) {
                     int antenna = 1 << index;
@@ -561,14 +562,34 @@ public class ChafonReader {
                     long now = System.currentTimeMillis();
                     long elapsed = now - lastToggleTime;
                     if (elapsed >= toggleIntervalMs) {
-                        currentIsA = !currentIsA;
-                        try {
-                            boolean updated = setFrequency(currentIsA ? Frequency.BRAZIL_A : Frequency.BRAZIL_B);
-                            System.out.printf("Toggled region to %s (updated = %b, now = %d, last = %d, elapsed = %d)%n", (currentIsA ? "A" : "B"), updated, now, lastToggleTime, elapsed);
-                        } catch (Exception e) {
-                            System.err.println("Failed to toggle SetRegion: " + e.getMessage());
+                        if (settingFrequency.compareAndSet(false, true)) {
+                            try {
+                                // pre-increment index: first loop will move 0 -> 1 as requested
+                                int nextIndex = freqIndex.updateAndGet(i -> {
+                                    int ni = i + 1;
+                                    return (ni >= frequencies.size()) ? 0 : ni;
+                                });
+
+                                Frequency nextFreq = frequencies.get(nextIndex);
+
+                                long callStart = System.currentTimeMillis();
+                                boolean updated = setFrequency(nextFreq);
+                                long callEnd = System.currentTimeMillis();
+
+                                System.out.printf("[%s] Toggled frequency index=%d freq=%s (updated=%b) took=%d ms now=%d last=%d elapsed=%d%n",
+                                    Instant.ofEpochMilli(System.currentTimeMillis()), nextIndex, nextFreq, updated, (callEnd - callStart), now, lastToggleTime, elapsed);
+
+                                // only advance the timer after finishing setFrequency
+                                lastToggleTime = System.currentTimeMillis();
+                            } catch (Exception e) {
+                                System.err.println("Failed to toggle SetRegion: " + e.getMessage());
+                                lastToggleTime = System.currentTimeMillis(); // avoid tight retry loops
+                            } finally {
+                                settingFrequency.set(false);
+                            }
+                        } else {
+                            System.out.println("Skipping toggle because setFrequency already in progress");
                         }
-                        lastToggleTime = now;
                     }
                 }
 
@@ -624,7 +645,7 @@ public class ChafonReader {
         final String version = String.format("%d.%d", major, minor);
 
         final int powerByte = Byte.toUnsignedInt(_power[0]); // could be 0..33 or 255 if called after 'SetRfPowerByAnt'
-        System.out.printf("power mask = 0x%08X, binary=%s%n", _power[0], Integer.toBinaryString(powerByte));
+        // System.out.printf("power mask = 0x%08X, binary=%s%n", _power[0], Integer.toBinaryString(powerByte));
         final boolean powerPerAntennaMode = (powerByte == 0xFF);
         final int power = powerPerAntennaMode ? -1 : powerByte;
         final int[] powerPerAntenna = getAntennaPower();
@@ -634,10 +655,10 @@ public class ChafonReader {
         final int minIndex = Byte.toUnsignedInt(_minFrequency[0]);
 
         final int beep = Byte.toUnsignedInt(_beep[0]);
-        System.out.printf("beep mask = 0x%08X, binary=%s%n", _beep[0], Integer.toBinaryString(beep));
+        // System.out.printf("beep mask = 0x%08X, binary=%s%n", _beep[0], Integer.toBinaryString(beep));
 
         final int mask = _ant[0];
-        System.out.printf("ant mask = 0x%08X, binary=%s%n", mask, Integer.toBinaryString(mask));
+        // System.out.printf("ant mask = 0x%08X, binary=%s%n", mask, Integer.toBinaryString(mask));
 
         final int[] enabled = new int[antennas];
         final int limit = Math.max(0, Math.min(antennas, Integer.SIZE));

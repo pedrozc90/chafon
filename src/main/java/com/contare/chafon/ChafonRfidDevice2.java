@@ -13,6 +13,7 @@ import lombok.ToString;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
+import java.time.Instant;
 
 public class ChafonRfidDevice2 implements RfidDevice {
 
@@ -30,8 +31,12 @@ public class ChafonRfidDevice2 implements RfidDevice {
         reader.SetCallBack(new TagCallback() {
             @Override
             public void tagCallback(final ReadTag readTag) {
-                final TagMetadata tag = TagMetadataMapper.toDto(readTag);
-                System.out.println("Tag Received: " + tag);
+                try {
+                    final TagMetadata tag = TagMetadataMapper.toDto(readTag);
+                    System.out.printf("[%s] Tag Received: %s%n", Instant.ofEpochMilli(System.currentTimeMillis()), tag);
+                } catch (Exception e) {
+                    System.err.println("Error parsing tag: " + e.getMessage());
+                }
             }
 
             @Override
@@ -64,7 +69,7 @@ public class ChafonRfidDevice2 implements RfidDevice {
             }
 
             final ReaderParameter params = reader.GetInventoryParameter();
-            params.SetScanTime(20);
+            params.SetScanTime(30);
             reader.SetInventoryParameter(params);
 
             final boolean started = this.startRead();

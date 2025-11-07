@@ -9,7 +9,7 @@ public class Options {
 
     public final String address;   // device MAC Address
     public final String ip;        // network IP Address
-    public final int port;     // network port
+    public final int port;         // network port
     public final int antennas;     // number of antennas
     public final boolean verbose;  // enables verbose mode
 

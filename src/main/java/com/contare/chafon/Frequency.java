@@ -10,6 +10,7 @@ import java.util.Set;
 @ToString
 public class Frequency {
 
+    // Fn = Frequency_Inicial + N * Frequencia_Passo
     public static final Frequency CHINESE_2 = new Frequency(1, 920.125, 0.25, 0, 19);
     public static final Frequency US = new Frequency(2, 902.75, 0.5, 0, 49);
     public static final Frequency KOREAN = new Frequency(3, 917.1, 0.2, 0, 31);
@@ -17,8 +18,8 @@ public class Frequency {
     public static final Frequency CHINESE_1 = new Frequency(8, 840.125, 0.25, 0, 19);
     public static final Frequency ALL = new Frequency(0, 840, 2, 0, 60);
 
-    public static final Frequency BRAZIL_A;
-    public static final Frequency BRAZIL_B;
+    public static final Frequency BRAZIL_A = new Frequency(2, 902.75, 0.5, 0, 9, false); // 902 ~ 907.5 MHz
+    public static final Frequency BRAZIL_B = new Frequency(2, 902.75, 0.5, 25, 49, false); // 915 ~ 927.75 MHz
 
     private static final Set<Frequency> _set = Set.of(
         Frequency.US,
@@ -28,27 +29,27 @@ public class Frequency {
         Frequency.CHINESE_2
     );
 
-    static {
-        BRAZIL_A = Frequency.get(902, 907.5);
-        BRAZIL_B = Frequency.get(915, 927.75);
-    }
-
-    private final int bandId;
+    private final int band;
     private final double fStartMHz;
     private final double stepMHz;
     private final int minIndex;
     private final int maxIndex;
+    private final boolean _default;
 
-    private Frequency(int bandId, double fStartMHz, double stepMHz, int minIndex, int maxIndex) {
-        this.bandId = bandId;
+    private Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex) {
+        this(band, fStartMHz, stepMHz, minIndex, maxIndex, true);
+    }
+    private Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex, final boolean _default) {
+        this.band = band;
         this.fStartMHz = fStartMHz;
         this.stepMHz = stepMHz;
         this.minIndex = minIndex;
         this.maxIndex = maxIndex;
+        this._default = _default;
     }
 
     public double getMinFrequency() {
-        return frequencyForIndex(0);
+        return frequencyForIndex(minIndex);
     }
 
     public double getMaxFrequency() {
@@ -93,14 +94,16 @@ public class Frequency {
         int minIndex = 0, maxIndex = 0;
 
         for (Frequency row : _set) {
-            int[] idx = row.indicesForRange(minMHz, maxMHz);
-            if (idx == null) continue;
-            int count = idx[1] - idx[0] + 1;
-            if (count > bestCount) {
-                bestCount = count;
-                match = row;
-                minIndex = idx[0];
-                maxIndex = idx[1];
+            if (row._default) {
+                int[] idx = row.indicesForRange(minMHz, maxMHz);
+                if (idx == null) continue;
+                int count = idx[1] - idx[0] + 1;
+                if (count > bestCount) {
+                    bestCount = count;
+                    match = row;
+                    minIndex = idx[0];
+                    maxIndex = idx[1];
+                }
             }
         }
 
@@ -108,7 +111,7 @@ public class Frequency {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "No single band supports any channel inside %.3f..%.3f MHz", minMHz, maxMHz));
         }
 
-        return new Frequency(match.bandId, match.fStartMHz, match.stepMHz, minIndex, maxIndex);
+        return new Frequency(match.band, match.fStartMHz, match.stepMHz, minIndex, maxIndex);
     }
 
 }

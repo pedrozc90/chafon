@@ -4,8 +4,8 @@ import com.contare.core.RfidDevice;
 import com.contare.core.mappers.TagMetadataMapper;
 import com.contare.core.objects.Options;
 import com.contare.core.objects.TagMetadata;
-import com.rfid.CReader;
 import com.rfid.ReadTag;
+import com.rfid.ReaderParameter;
 import com.rfid.TagCallback;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,21 +14,18 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
 
-public class ChafonRfidDevice implements RfidDevice {
+public class ChafonRfidDevice2 implements RfidDevice {
 
     private static final int MIN_POWER_DBM = 0;
     private static final int MAX_POWER_DBM = 33;
     private static final int DEFAULT_POWER_DBM = 0;
 
-    private CReader reader;
-    private int antennas = 4;
+    private ChafonReader reader;
 
     @Override
     public boolean init(final Options opts) {
-        this.antennas = opts.antennas;
-        final int logswitch = opts.verbose ? 1 : 0;            // 0 - close, 1 - open
 
-        reader = new CReader(opts.ip, opts.port, opts.antennas, logswitch);
+        reader = new ChafonReader(opts.ip, opts.port, opts.antennas, opts.verbose);
 
         reader.SetCallBack(new TagCallback() {
             @Override
@@ -66,9 +63,9 @@ public class ChafonRfidDevice implements RfidDevice {
                 System.out.println("Device beep has been updated");
             }
 
-            // final ReaderParameter params = reader.GetInventoryParameter();
-            // params.SetScanTime(255);
-            // reader.SetInventoryParameter(params);
+            final ReaderParameter params = reader.GetInventoryParameter();
+            params.SetScanTime(20);
+            reader.SetInventoryParameter(params);
 
             final boolean started = this.startRead();
             if (started) {
@@ -128,7 +125,6 @@ public class ChafonRfidDevice implements RfidDevice {
         return true;
     }
 
-    // API
     public Metadata getInformation() throws ChafonDeviceException {
         final byte[] _version = new byte[2]; // bit 1 = version number, bit 2 = subversion number
         final byte[] _power = new byte[1]; // output power (range 0 ~ 30 dbm)
@@ -164,6 +160,7 @@ public class ChafonRfidDevice implements RfidDevice {
         final int mask = _ant[0];
         System.out.printf("ant mask = 0x%08X, binary=%s%n", mask, Integer.toBinaryString(mask));
 
+        final int antennas = reader.GetAntennas();
         final int[] enabled = new int[antennas];
         final int limit = Math.max(0, Math.min(antennas, Integer.SIZE));
         for (int i = 0; i < limit; i++) {
@@ -235,6 +232,7 @@ public class ChafonRfidDevice implements RfidDevice {
     }
 
     public boolean setAntenna(final int antenna, final boolean enabled, final boolean persist) throws ChafonDeviceException {
+        final int antennas = reader.GetAntennas();
         if (antenna < 1 || antenna > antennas) {
             throw new IllegalArgumentException(String.format("Antenna must be between 1 and %d.", antennas));
         }
@@ -267,6 +265,7 @@ public class ChafonRfidDevice implements RfidDevice {
     }
 
     public int[] getAntennaPower() throws ChafonDeviceException {
+        final int antennas = reader.GetAntennas();
         final byte[] _power = new byte[antennas];
         final int res = reader.GetRfPowerByAnt(_power);
         final ChafonDeviceStatus status = ChafonDeviceStatus.of(res);
@@ -287,6 +286,7 @@ public class ChafonRfidDevice implements RfidDevice {
             throw new IllegalArgumentException("Antenna power must not be null.");
         }
 
+        final int antennas = reader.GetAntennas();
         if (power.length > antennas) {
             throw new IllegalArgumentException("Antenna length must be <= number of antennas (" + antennas + ")");
         }

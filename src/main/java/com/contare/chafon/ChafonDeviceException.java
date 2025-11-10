@@ -24,12 +24,27 @@ public final class ChafonDeviceException extends RfidDeviceException {
 
     private final ChafonDeviceStatus status;
 
+    private ChafonDeviceException(final String message) {
+        super(message);
+        this.status = ChafonDeviceStatus.of(-1);
+    }
+
     /**
      * Create an exception carrying the given status. The exception message is the status full message.
      */
-    private ChafonDeviceException(ChafonDeviceStatus status) {
+    private ChafonDeviceException(final ChafonDeviceStatus status) {
         super(String.format("%s (%s)", Objects.requireNonNull(status, "status").getMessage(), status.getHex()));
         this.status = status;
+    }
+
+    public static ChafonDeviceException of(final String fmt, final Object... args) {
+        final String message = String.format(fmt, args);
+        return new ChafonDeviceException(message);
+    }
+
+    public static ChafonDeviceException of(final int code) {
+        final ChafonDeviceStatus status = ChafonDeviceStatus.of(code);
+        return of(status);
     }
 
     public static ChafonDeviceException of(final ChafonDeviceStatus status) {

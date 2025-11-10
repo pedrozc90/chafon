@@ -9,7 +9,7 @@ device:
         specs:
             -   band: 1
                 minN: 0
-                maxN: 30
+                maxN: 18
             -   min: 902
                 max: 907.5
             -   min: 915

@@ -28,7 +28,7 @@ public final class ChafonDeviceStatus {
     private final String message; // human readable description for the code
     private final boolean success;
 
-    private ChafonDeviceStatus(int code, String hex, String message, boolean success) {
+    private ChafonDeviceStatus(final int code, final String hex, final String message, final boolean success) {
         this.code = code & 0xFF;
         this.hex = Objects.requireNonNull(hex, "hex");
         this.message = Objects.requireNonNull(message, "message");
@@ -39,8 +39,9 @@ public final class ChafonDeviceStatus {
      * Returns the canonical status instance for known codes, or a small new instance for unknown codes.
      * 0x00 will always be returned as the success instance.
      */
-    public static ChafonDeviceStatus of(int code) {
-        final int c = code & 0xFF;
+    public static ChafonDeviceStatus of(final int code) {
+        // final int c = code & 0xFF;
+        final int c = code;
 
         final ChafonDeviceStatus known = map.get(c);
         if (known != null) {
@@ -49,7 +50,7 @@ public final class ChafonDeviceStatus {
 
         final String hex = String.format("0x%02X", c);
         final boolean success = (c == 0x00);
-        final String desc = success ? "API is called successfully." : "Unknown error code";
+        final String desc = success ? "API is called successfully." : "Unknown error code.";
         // Unknown codes are rare; create a small instance carrying the code/hex/desc
         return new ChafonDeviceStatus(c, hex, desc, success);
     }

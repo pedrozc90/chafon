@@ -7,7 +7,8 @@ import com.contare.config.Config;
 import com.contare.config.ConfigLoader;
 import com.contare.core.exceptions.RfidDeviceException;
 import com.contare.core.objects.Options;
-import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.jboss.logging.Logger;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -17,21 +18,23 @@ import java.util.stream.Collectors;
 
 public class Main {
 
+    private static final Logger logger = Logger.getLogger(Main.class);
+
     public static void main(final String[] args) {
         try {
+            // MUST run this before any logging occurs (including libraries).
+            SLF4JBridgeHandler.removeHandlersForRootLogger();
+            SLF4JBridgeHandler.install();
             final Config cfg = ConfigLoader.load(args);
-            System.out.println("Loaded configurations:\n" + ConfigLoader.toString(cfg));
-
+            logger.infof("Loaded configurations:\n%s", ConfigLoader.toString(cfg));
             run(cfg.getDevice());
         } catch (Exception e) {
-            System.err.println("Failed to load configurations. Reason: " + e.getMessage());
-            e.printStackTrace();
+            logger.errorf(e, "Failed to load configurations.");
             System.exit(1);
         }
     }
 
     private static void run(final Config.Device cfg) {
-
         final int interval = Math.max(cfg.getFrequency().getInterval(), 0);
         final List<Frequency> frequencies = Arrays.stream(cfg.getFrequency().getSpecs())
             .map(Config.FrequencySpec::toFrequency)
@@ -44,26 +47,27 @@ public class Main {
         try (final ChafonRfidDevice device = new ChafonRfidDevice()) {
             final boolean initialized = device.init(opts);
             if (initialized) {
-                System.out.println("Device connected opts: " + opts);
+                logger.debugf("Device connected opts: %s", opts);
             }
 
             final UHFInformation info = device.GetUHFInformation();
-            System.out.println("Device info: " + info);
+            logger.debugf("Device info: %s", info);
 
 
             boolean started = device.start();
-            System.out.println("Device started: " + started);
+            if (started) {
+                logger.debugf("Device started");
+            } else {
+                logger.warnf("Device did not started");
+            }
 
             latch.await();
         } catch (RfidDeviceException e) {
-            final String stackTrace = ExceptionUtils.getStackTrace(e);
-            System.err.println("Device error. Reason: " + stackTrace);
+            logger.errorf(e, "Device error.");
         } catch (IOException e) {
-            final String stackTrace = ExceptionUtils.getStackTrace(e);
-            System.err.println("IO error. Reason " + stackTrace);
+            logger.errorf(e, "IO error.");
         } catch (InterruptedException e) {
-            final String stackTrace = ExceptionUtils.getStackTrace(e);
-            System.err.println("Interrupted while waiting for device. Reason: " + stackTrace);
+            logger.errorf(e, "Interrupted while waiting for device.");
         }
     }
 

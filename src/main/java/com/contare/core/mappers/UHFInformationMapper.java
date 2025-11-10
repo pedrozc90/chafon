@@ -1,8 +1,11 @@
 package com.contare.core.mappers;
 
 import com.contare.chafon.UHFInformation;
+import org.jboss.logging.Logger;
 
 public class UHFInformationMapper {
+
+    private static final Logger logger = Logger.getLogger(UHFInformationMapper.class);
 
     /**
      *

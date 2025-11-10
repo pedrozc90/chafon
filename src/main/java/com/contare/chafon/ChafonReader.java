@@ -5,14 +5,17 @@ import com.rfid.BaseReader;
 import com.rfid.ReaderParameter;
 import com.rfid.TagCallback;
 import com.rfid.Utils;
+import org.jboss.logging.Logger;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 public class ChafonReader {
+
+    private static final Logger logger = Logger.getLogger(ChafonReader.class);
 
     private static final int MIN_POWER_DBM = 0;
     private static final int MAX_POWER_DBM = 33;
@@ -42,6 +45,8 @@ public class ChafonReader {
      * @param verbose  - verbose mode, default is false.
      */
     public ChafonReader(final String ip, final int port, final int antennas, final boolean verbose) {
+        Objects.requireNonNull(ip, "ip must not be null.");
+
         this.ip = ip;
         this.port = port;
         this.antennas = antennas;
@@ -79,7 +84,7 @@ public class ChafonReader {
         return result;
     }
 
-    public void DisConnect() {
+    public void Disconnect() {
         if (isConnect) {
             mWorking = false;
             reader.DisConnect();
@@ -118,11 +123,11 @@ public class ChafonReader {
         ComAddr[0] = -1;
         byte[] AntCfg0 = new byte[1];
         byte[] AntCfg1 = new byte[1];
-        int result = this.reader.GetReaderInformation(ComAddr, Version, ReaderType, TrType, band, MaxFre, MinFre, Power, ScanTime, AntCfg0, BeepEn, AntCfg1, CheckAnt);
-        if (result == 0) {
+        int result = reader.GetReaderInformation(ComAddr, Version, ReaderType, TrType, band, MaxFre, MinFre, Power, ScanTime, AntCfg0, BeepEn, AntCfg1, CheckAnt);
+        if (result == 0x00) {
             Ant[0] = ((AntCfg1[0] & 255) << 8) + (AntCfg0[0] & 255);
-            this.param.SetAddress(ComAddr[0]);
-            this.param.SetAntenna(Ant[0] & 255);
+            param.SetAddress(ComAddr[0]);
+            param.SetAntenna(Ant[0] & 255);
             byte[] Pro = new byte[1];
             Pro[0] = 0;
         }
@@ -131,25 +136,28 @@ public class ChafonReader {
     }
 
     public UHFInformation GetUHFInformation() {
-        final byte[] version = new byte[2]; // bit 1 = version number, bit 2 = subversion number
-        final byte[] power = new byte[1]; // output power (range 0 ~ 30 dbm)
-        final byte[] band = new byte[1]; // spectrum band (1 - Chinese 1, 2 - US, 3 - Korean, 4 - EU, 8 - Chinese 2, 0 - All)
-        final byte[] maxFrequency = new byte[1]; // current maximum frequency of the reader
-        final byte[] minFrequency = new byte[1]; // current minimum frequency of the reader
-        final byte[] beep = new byte[1]; // buzzer beeps information
-        final int[] ant = new int[1]; // each bit represent an antenna number, such as 0x00009, the binary is 00000000 00001001, indicating antenna 1 to 4
+        try {
+            final byte[] version = new byte[2]; // bit 1 = version number, bit 2 = subversion number
+            final byte[] power = new byte[1]; // output power (range 0 ~ 30 dbm)
+            final byte[] band = new byte[1]; // spectrum band (1 - Chinese 1, 2 - US, 3 - Korean, 4 - EU, 8 - Chinese 2, 0 - All)
+            final byte[] maxFrequency = new byte[1]; // current maximum frequency of the reader
+            final byte[] minFrequency = new byte[1]; // current minimum frequency of the reader
+            final byte[] beep = new byte[1]; // buzzer beeps information
+            final int[] ant = new int[1]; // each bit represent an antenna number, such as 0x00009, the binary is 00000000 00001001, indicating antenna 1 to 4
 
-        final int result = this.GetUHFInformation(version, power, band, maxFrequency, minFrequency, beep, ant);
-        if (result != 0x00) {
-            final ChafonDeviceStatus status = ChafonDeviceStatus.of(result);
-            System.err.println("GetUHFInformation: " + status);
+            final int result = this.GetUHFInformation(version, power, band, maxFrequency, minFrequency, beep, ant);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+
+            final int[] powerPerAntenna = GetRfPowerByAnt();
+            final String serialNo = GetSerialNo();
+
+            return UHFInformationMapper.parse(version, power, band, maxFrequency, minFrequency, beep, ant, powerPerAntenna, antennas, serialNo);
+        } catch (ChafonDeviceException e) {
+            logger.error("Error getting UHF information.", e);
             return null;
         }
-
-        final int[] powerPerAntenna = GetRfPowerByAnt();
-        final String serialNo = GetSerialNo();
-
-        return UHFInformationMapper.parse(version, power, band, maxFrequency, minFrequency, beep, ant, powerPerAntenna, antennas, serialNo);
     }
 
     /**
@@ -165,15 +173,19 @@ public class ChafonReader {
     }
 
     public boolean SetPower(final int value) {
-        if (value < MIN_POWER_DBM || value > MAX_POWER_DBM) {
-            throw new IllegalArgumentException("Power must be between 0 and 33.");
+        try {
+            if (value < MIN_POWER_DBM || value > MAX_POWER_DBM) {
+                throw ChafonDeviceException.of("Power must be between 0 and 33.");
+            }
+            final int result = this.SetRfPower(value);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.error("Error setting power.", e);
+            return false;
         }
-        final int result = this.SetRfPower(port);
-        if (verbose) {
-            final ChafonDeviceStatus status = ChafonDeviceStatus.of(result);
-            System.out.println("SetPower: " + status);
-        }
-        return (result == 0x00);
     }
 
     /**
@@ -202,18 +214,25 @@ public class ChafonReader {
      */
     public boolean SetFrequency(final Frequency value) {
         final long start = System.currentTimeMillis();
+        try {
+            final int bandId = value.getBand();
+            final int maxIndex = value.getMaxIndex();
+            final int minIndex = value.getMinIndex();
 
-        final int bandId = value.getBand();
-        final int maxIndex = value.getMaxIndex();
-        final int minIndex = value.getMinIndex();
+            final int result = this.SetRegion(bandId, maxIndex, minIndex);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
 
-        final int result = this.SetRegion(bandId, maxIndex, minIndex);
+            // Log what we actually set
+            final long elapsed = System.currentTimeMillis() - start;
+            logger.debugf("SetRegion: band = %d, indices = %d .. %d, frequency=%.3f ~ %.3f MHz (%d ms)", bandId, minIndex, maxIndex, value.getMinFrequency(), value.getMaxFrequency(), elapsed);
 
-        // Log what we actually set
-        final long elapsed = System.currentTimeMillis() - start;
-        System.out.printf("SetRegion: band=%d indices=%d..%d frequency=%.3f..%.3f MHz (%d ms)%n", bandId, minIndex, maxIndex, value.getMinFrequency(), value.getMaxFrequency(), elapsed);
-
-        return (result == 0x00);
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error setting frequency. (%d ms)", System.currentTimeMillis() - start);
+            return false;
+        }
     }
 
     /**
@@ -227,21 +246,21 @@ public class ChafonReader {
      */
     private int SetAntenna(final int SetOnce, int AntCfg) {
         int result = 0;
-        if (this.antennas > 4) {
+        if (antennas > 4) {
             byte AntCfg1 = (byte) (AntCfg >> 8);
             byte AntCfg2 = (byte) (AntCfg & 255);
-            result = this.reader.SetAntennaMultiplexing(this.param.GetAddress(), (byte) SetOnce, AntCfg1, AntCfg2);
+            result = reader.SetAntennaMultiplexing(param.GetAddress(), (byte) SetOnce, AntCfg1, AntCfg2);
             if (result == 0) {
-                this.param.SetAntenna(AntCfg);
+                param.SetAntenna(AntCfg);
             }
         } else {
             if (SetOnce == 1) {
                 AntCfg |= 128;
             }
 
-            result = this.reader.SetAntennaMultiplexing(this.param.GetAddress(), (byte) AntCfg);
+            result = reader.SetAntennaMultiplexing(param.GetAddress(), (byte) AntCfg);
             if (result == 0) {
-                this.param.SetAntenna(AntCfg);
+                param.SetAntenna(AntCfg);
             }
         }
 
@@ -252,17 +271,26 @@ public class ChafonReader {
         if (antenna < 1 || antenna > antennas) {
             throw new IllegalArgumentException(String.format("Antenna must be between 1 and %d.", antennas));
         }
-        final int setOnce = persist ? 0 : 1; // 0 = save across power-off, 1 = do NOT save
+        try {
+            final int setOnce = persist ? 0 : 1; // 0 = save across power-off, 1 = do NOT save
 
-        // Read current mask from device (replace with your SDK call)
-        final UHFInformation info = GetUHFInformation();
-        final int currentMask = info.getAntennaMask();
+            // Read current mask from device (replace with your SDK call)
+            final UHFInformation info = GetUHFInformation();
+            final int currentMask = info.getAntennaMask();
 
-        final int bit = 1 << (antenna - 1);
-        final int newMask = enabled ? (currentMask | bit) : (currentMask & ~bit);
+            final int bit = 1 << (antenna - 1);
+            final int newMask = enabled ? (currentMask | bit) : (currentMask & ~bit);
 
-        final int result = this.SetAntenna(setOnce, newMask);
-        return (result == 0x00);
+            final int result = this.SetAntenna(setOnce, newMask);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.error("Error setting antenna.", e);
+            return false;
+        }
+
     }
 
     /**
@@ -282,12 +310,18 @@ public class ChafonReader {
      * @return true if beep sound notification changed.
      */
     public boolean SetBeep(final boolean enable) {
-        final int result = SetBeepNotification(enable ? 0x01 : 0x00);
-        if (verbose) {
-            final ChafonDeviceStatus status = ChafonDeviceStatus.of(result);
-            System.out.println("SetBeep: " + status);
+        final long start = System.currentTimeMillis();
+        try {
+            final int result = SetBeepNotification(enable ? 0x01 : 0x00);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            logger.debugf("Beep %s (%d ms)", (enable ? "enabled" : "disabled"), System.currentTimeMillis() - start);
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error setting beep. (%d ms)", System.currentTimeMillis() - start);
+            return false;
         }
-        return (result == 0x00);
     }
 
     /**
@@ -309,24 +343,34 @@ public class ChafonReader {
             throw new IllegalArgumentException("Antenna length must be <= number of antennas (" + antennas + ")");
         }
 
-        // Create a array power sized to the device's antenna count.
-        final byte[] array = new byte[antennas];
+        final long start = System.currentTimeMillis();
 
-        for (int i = 0; i < antennas; i++) {
-            final int val = (i < power.length) ? power[i] : DEFAULT_POWER_DBM;
+        try {
+            // Create a array power sized to the device's antenna count.
+            final byte[] array = new byte[antennas];
 
-            // Validate (or clamp). I recommend validating and throwing so callers know they passed bad values.
-            if (val < MIN_POWER_DBM || val > MAX_POWER_DBM) {
-                throw new IllegalArgumentException(String.format("Power for antenna %d out of range: %d (allowed %d..%d)", i + 1, val, MIN_POWER_DBM, MAX_POWER_DBM));
+            for (int i = 0; i < antennas; i++) {
+                final int val = (i < power.length) ? power[i] : DEFAULT_POWER_DBM;
+
+                // Validate (or clamp). I recommend validating and throwing so callers know they passed bad values.
+                if (val < MIN_POWER_DBM || val > MAX_POWER_DBM) {
+                    throw new IllegalArgumentException(String.format("Power for antenna %d out of range: %d (allowed %d..%d)", i + 1, val, MIN_POWER_DBM, MAX_POWER_DBM));
+                }
+
+                // safe cast to byte — 0..30 fits into signed byte without wrap
+                array[i] = (byte) val;
             }
 
-            // safe cast to byte — 0..30 fits into signed byte without wrap
-            array[i] = (byte) val;
+            final int result = this.SetRfPowerByAnt(array);
+
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error setting antenna power. (%d ms)", System.currentTimeMillis() - start);
+            return false;
         }
-
-        final int result = this.SetRfPowerByAnt(array);
-
-        return (result == 0x00);
     }
 
     /**
@@ -340,18 +384,26 @@ public class ChafonReader {
     }
 
     public int[] GetRfPowerByAnt() {
-        final byte[] _power = new byte[antennas];
-        final int result = this.GetRfPowerByAnt(_power);
-        if (result != 0x00) {
+        final long start = System.currentTimeMillis();
+        try {
+            final byte[] _power = new byte[antennas];
+            final int result = this.GetRfPowerByAnt(_power);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+
+            final int[] power = new int[_power.length];
+            for (int i = 0; i < power.length; i++) {
+                power[i] = Byte.toUnsignedInt(_power[i]);
+            }
+
+            logger.debugf("Obtained antenna power. (%d ms)", System.currentTimeMillis() - start);
+
+            return power;
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error getting antenna power. (%d ms)", System.currentTimeMillis() - start);
             return null;
         }
-
-        final int[] power = new int[_power.length];
-        for (int i = 0; i < power.length; i++) {
-            power[i] = Byte.toUnsignedInt(_power[i]);
-        }
-
-        return power;
     }
 
     public int ConfigDRM(final byte[] DRM) {
@@ -386,20 +438,29 @@ public class ChafonReader {
     }
 
     public byte[] GetGPIOStatus() {
-        byte[] output = new byte[1];
-        int result = this.GetGPIOStatus(output);
-        if (result != 0x00) {
+        try {
+            byte[] output = new byte[1];
+            int result = this.GetGPIOStatus(output);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return output;
+        } catch (ChafonDeviceException e) {
+            logger.error("Error getting GPIO status.", e);
             return null;
         }
-        return output;
     }
 
     public String GetSerialNo() {
-        byte[] btArr = new byte[4];
-        int result = reader.GetSerialNo(param.GetAddress(), btArr);
-        if (result == 0x00) {
+        try {
+            byte[] btArr = new byte[4];
+            int result = reader.GetSerialNo(param.GetAddress(), btArr);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
             return Utils.bytesToHexString(btArr, 0, btArr.length);
-        } else {
+        } catch (ChafonDeviceException e) {
+            logger.error("Error getting serial number.", e);
             return null;
         }
     }
@@ -819,19 +880,18 @@ public class ChafonReader {
                                 boolean updated = this.SetFrequency(nextFreq);
                                 long callEnd = System.currentTimeMillis();
 
-                                System.out.printf("[%s] Toggled frequency index=%d freq=%s (updated=%b) took=%d ms now=%d last=%d elapsed=%d%n",
-                                    Instant.ofEpochMilli(System.currentTimeMillis()), nextIndex, nextFreq, updated, (callEnd - callStart), now, lastToggleTime, elapsed);
+                                logger.infof("Frequency changed to band = %d, indices = %d .. %d, frequency = %.3f ~ %.3f MHz (%d ms)", nextFreq.getBand(), nextFreq.getMinIndex(), nextFreq.getMaxIndex(), nextFreq.getMinFrequency(), nextFreq.getMaxFrequency(), callStart - callEnd);
 
                                 // only advance the timer after finishing setFrequency
                                 lastToggleTime = System.currentTimeMillis();
                             } catch (Exception e) {
-                                System.err.println("Failed to toggle SetRegion: " + e.getMessage());
+                                logger.error("Failed to change device frequency.", e);
                                 lastToggleTime = System.currentTimeMillis(); // avoid tight retry loops
                             } finally {
                                 settingFrequency.set(false);
                             }
                         } else {
-                            System.out.println("Skipping toggle because setFrequency already in progress");
+                            logger.debug("Skipping toggle because setFrequency already in progress");
                         }
                     }
                 }

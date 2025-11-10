@@ -7,10 +7,13 @@ import com.contare.core.objects.Options;
 import com.contare.core.objects.TagMetadata;
 import com.rfid.ReadTag;
 import com.rfid.TagCallback;
+import org.jboss.logging.Logger;
 
 import java.io.IOException;
 
 public class ChafonRfidDevice implements RfidDevice {
+
+    private static final Logger logger = Logger.getLogger(ChafonRfidDevice.class);
 
     private Options opts;
     private ChafonReader reader;
@@ -25,12 +28,12 @@ public class ChafonRfidDevice implements RfidDevice {
             @Override
             public void tagCallback(final ReadTag readTag) {
                 final TagMetadata tag = TagMetadataMapper.toDto(readTag);
-                System.out.println("Tag Received: " + tag);
+                logger.infof("Tag Received: %s", tag);
             }
 
             @Override
             public void StopReadCallback() {
-                System.out.println("Stop Read Callback");
+                logger.info("Stop Read Callback");
             }
         });
 
@@ -41,20 +44,21 @@ public class ChafonRfidDevice implements RfidDevice {
 
     @Override
     public boolean start() throws RfidDeviceException {
-        System.out.println("Starting device");
+        logger.debug("Starting device");
+
         final boolean fUpdated = reader.SetFrequency(Frequency.BRAZIL_A);
         if (fUpdated) {
-            System.out.println("Device frequency has been updated");
+            logger.debug("Device frequency has been updated");
         }
 
         final boolean pUpdated = reader.SetPower(30);
         if (pUpdated) {
-            System.out.println("Device power has been updated");
+            logger.debug("Device power has been updated");
         }
 
         final boolean bUpdated = reader.SetBeep(true);
         if (bUpdated) {
-            System.out.println("Device beep has been updated");
+            logger.debug("Device beep has been updated");
         }
 
         // final ReaderParameter params = reader.GetInventoryParameter();
@@ -72,37 +76,27 @@ public class ChafonRfidDevice implements RfidDevice {
     @Override
     public boolean stop() {
         final long start = System.currentTimeMillis();
-        System.out.println("Stopping device");
+        logger.debug("Stopping device");
         if (reader != null) {
             reader.StopRead(); // this blocks until the reader thread finishes (per SDK behaviour)
         }
         final long elapsed = System.currentTimeMillis() - start;
-        System.out.printf("Device stopped in %d ms%n", elapsed);
+        logger.debugf("Device stopped (%d ms)", elapsed);
         return true;
     }
 
     @Override
     public void close() throws IOException {
         final long start = System.currentTimeMillis();
-        System.out.println("Closing device");
+        logger.debug("Closing device");
         this.stop();
         if (reader != null) {
             if (reader.isConnect) {
-                reader.DisConnect();
+                reader.Disconnect();
             }
         }
         final long elapsed = System.currentTimeMillis() - start;
-        System.out.printf("Device closed in %d ms%n", elapsed);
-    }
-
-    // API
-    public boolean connect() throws ChafonDeviceException {
-        final int res = reader.Connect();
-        final ChafonDeviceStatus status = ChafonDeviceStatus.of(res);
-        if (!status.isSuccess()) {
-            throw ChafonDeviceException.of(status);
-        }
-        return true;
+        logger.debugf("Device closed (%d ms)", elapsed);
     }
 
     // API

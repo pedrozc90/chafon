@@ -120,6 +120,15 @@ public class Frequency {
         for (Frequency row : _set) {
             if (row.band == band) {
                 ref = row;
+                if (minIndex < row.minIndex) {
+                    throw new IllegalArgumentException(String.format(Locale.ROOT, "minIndex %d is outside the range of the band %d", minIndex, band));
+                }
+                if (maxIndex > row.maxIndex) {
+                    throw new IllegalArgumentException(String.format(Locale.ROOT, "maxIndex %d is outside the range of the band %d", maxIndex, band));
+                }
+                if (minIndex > maxIndex) {
+                    throw new IllegalArgumentException(String.format(Locale.ROOT, "minIndex %d is greater than maxIndex %d", minIndex, maxIndex));
+                }
                 break;
             }
         }

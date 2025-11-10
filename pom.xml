@@ -30,6 +30,33 @@
             <systemPath>${project.basedir}/libs/CReader.jar</systemPath>
         </dependency>
 
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.6.1.Final</version>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
+        <!-- Logback runtime (the actual logger) -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.11</version>
+        </dependency>
+
+        <!-- Optional but recommended: route java.util.logging -> SLF4J/Logback -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
         <!-- Jackson YAML for YAML -> POJO -->
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>

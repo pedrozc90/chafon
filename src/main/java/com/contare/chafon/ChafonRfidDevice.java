@@ -6,11 +6,9 @@ import com.contare.core.mappers.TagMetadataMapper;
 import com.contare.core.objects.Options;
 import com.contare.core.objects.TagMetadata;
 import com.rfid.ReadTag;
-import com.rfid.ReaderParameter;
 import com.rfid.TagCallback;
 
 import java.io.IOException;
-import java.util.List;
 
 public class ChafonRfidDevice implements RfidDevice {
 
@@ -62,9 +60,8 @@ public class ChafonRfidDevice implements RfidDevice {
         // final ReaderParameter params = reader.GetInventoryParameter();
         // params.SetScanTime(255);
         // reader.SetInventoryParameter(params);
-        final List<Frequency> frequencies = List.of(Frequency.BRAZIL_A, Frequency.BRAZIL_B);
 
-        final int result = reader.StartRead(frequencies, 1_000);
+        final int result = reader.StartRead(opts.frequencies, opts.interval);
         if (result != 0x00) {
             throw ChafonDeviceException.of(ChafonDeviceStatus.of(result));
         }

@@ -39,7 +39,8 @@ public class Frequency {
     private Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex) {
         this(band, fStartMHz, stepMHz, minIndex, maxIndex, true);
     }
-    private Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex, final boolean _default) {
+
+    public Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex, final boolean _default) {
         this.band = band;
         this.fStartMHz = fStartMHz;
         this.stepMHz = stepMHz;
@@ -112,6 +113,20 @@ public class Frequency {
         }
 
         return new Frequency(match.band, match.fStartMHz, match.stepMHz, minIndex, maxIndex);
+    }
+
+    public static Frequency get(final int band, final int minIndex, final int maxIndex) {
+        Frequency ref = null;
+        for (Frequency row : _set) {
+            if (row.band == band) {
+                ref = row;
+                break;
+            }
+        }
+        if (ref == null) {
+            throw new IllegalArgumentException(String.format(Locale.ROOT, "No single band supports any channel inside band %d", band));
+        }
+        return new Frequency(band, ref.fStartMHz, ref.stepMHz, minIndex, maxIndex, false);
     }
 
 }

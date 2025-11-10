@@ -1,20 +1,18 @@
 package com.contare.core.mappers;
 
-import com.contare.chafon.ChafonDeviceException;
-import com.contare.chafon.ChafonDeviceStatus;
 import com.contare.chafon.UHFInformation;
 
 public class UHFInformationMapper {
 
     /**
      *
-     * @param _version (2 bytes)
-     * @param _power (1 bytes)
-     * @param _band (1 bytes)
+     * @param _version      (2 bytes)
+     * @param _power        (1 bytes)
+     * @param _band         (1 bytes)
      * @param _maxFrequency (1 bytes)
      * @param _minFrequency (1 bytes)
-     * @param _beep (1 bytes)
-     * @param _ant (1 int)
+     * @param _beep         (1 bytes)
+     * @param _ant          (1 int)
      * @return
      */
     public static UHFInformation parse(

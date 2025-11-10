@@ -13,10 +13,12 @@
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- versions -->
+        <jackson.version>2.20.1</jackson.version>
         <lombok.version>1.18.26</lombok.version>
         <junit.jupiter.version>5.9.3</junit.jupiter.version>
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.0.0</maven.surefire.plugin.version>
+        <maven.shade.plugin.version>3.4.1</maven.shade.plugin.version>
     </properties>
 
     <dependencies>
@@ -26,6 +28,20 @@
             <version>1.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/CReader.jar</systemPath>
+        </dependency>
+
+        <!-- Jackson YAML for YAML -> POJO -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- jackson-databind is pulled automatically, but explicit is OK -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
 
         <dependency>
@@ -83,6 +99,26 @@
                         <include>**/*Test.java</include>
                     </includes>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven.shade.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.contare.Main</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

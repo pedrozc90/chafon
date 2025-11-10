@@ -1,0 +1,18 @@
+device:
+    MACAddress: 2C-AC-44-04-97-01
+    ip: 192.168.1.200
+    port: 2022
+    antennas: 4
+    verbose: false
+    frequency:
+        interval: 1_000 # ms
+        specs:
+            -   band: 1
+                minN: 0
+                maxN: 30
+            -   min: 902
+                max: 907.5
+            -   min: 915
+                max: 927.75
+
+

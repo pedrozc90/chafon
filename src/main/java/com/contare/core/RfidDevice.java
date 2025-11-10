@@ -9,7 +9,7 @@ public interface RfidDevice extends Closeable {
 
     boolean init(final Options opts) throws RfidDeviceException;
 
-    boolean start();
+    boolean start() throws RfidDeviceException;
 
     boolean stop();
 

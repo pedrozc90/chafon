@@ -1049,7 +1049,14 @@ public class ChafonReader {
                                 boolean updated = this.SetFrequency(nextFreq);
                                 long callEnd = System.currentTimeMillis();
 
-                                logger.infof("Frequency changed to band = %d, indices = %d .. %d, frequency = %.3f ~ %.3f MHz (%d ms)", nextFreq.getBand(), nextFreq.getMinIndex(), nextFreq.getMaxIndex(), nextFreq.getMinFrequency(), nextFreq.getMaxFrequency(), callStart - callEnd);
+                                logger.infof("Frequency changed (%b) to band = %d, indices = %d .. %d, frequency = %.3f ~ %.3f MHz (%d ms)",
+                                    updated,
+                                    nextFreq.getBand(),
+                                    nextFreq.getMinIndex(),
+                                    nextFreq.getMaxIndex(),
+                                    nextFreq.getMinFrequency(),
+                                    nextFreq.getMaxFrequency(),
+                                    callEnd - callStart);
 
                                 // only advance the timer after finishing setFrequency
                                 lastToggleTime = System.currentTimeMillis();

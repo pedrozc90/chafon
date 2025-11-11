@@ -1,9 +1,64 @@
 # Contare Chafon Module
 
+## Description
+
+Aplicação prototipo do leitor Chafon.
+
 ## Device
 
 - `IP`: `192.168.1.200`
 - `Port`: `2022`
+
+## Usage
+
+```bash
+# build JAR
+./mvnw clean compile package -DskipTests
+```
+
+```bash
+# run mockup
+java -jar target/contare-chafon-module-1.0.0.jar --config application.yml
+```
+
+## Configuration
+
+```yaml
+device:
+  MACAddress: "2C-AC-44-04-97-01"
+  ip: "192.168.1.200"
+  port: 2022
+
+  antennas:
+    # Maximum number of physical antenna ports on the device
+    num: 4
+    # Map which antenna ports are enabled (keys are port numbers: 1..num)
+    map:
+      1: true
+      2: false
+      3: true
+      4: false
+
+  # When true, the application prints device commands and extra logs
+  verbose: false
+
+  frequency:
+    # Interval between frequency swaps in milliseconds
+    # Use a plain integer value (e.g. 1000). Some YAML parsers may not support numeric separators like 1_000.
+    interval: 1000
+
+    # A list of frequency specs to rotate through. Two accepted formats:
+    # 1) channel band specification: use `band`, and channel range `minN` / `maxN` (integers)
+    # 2) frequency range specification: use `min` / `max` expressed in MHz (floats or ints)
+    specs:
+      - band: 1
+        minN: 0
+        maxN: 18
+      - min: 902.0
+        max: 907.5
+      - min: 915.0
+        max: 927.75
+```
 
 ## Frequency Band
 

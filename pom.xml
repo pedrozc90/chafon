@@ -19,6 +19,7 @@
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.0.0</maven.surefire.plugin.version>
         <maven.shade.plugin.version>3.4.1</maven.shade.plugin.version>
+        <maven.install.plugin.version>3.1.0</maven.install.plugin.version>
     </properties>
 
     <dependencies>
@@ -26,8 +27,6 @@
             <groupId>com.rfid</groupId>
             <artifactId>creader</artifactId>
             <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/CReader.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -47,13 +46,19 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.11</version>
+            <version>1.5.13</version>
         </dependency>
 
         <!-- Optional but recommended: route java.util.logging -> SLF4J/Logback -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
             <version>1.7.36</version>
         </dependency>
 
@@ -142,7 +147,35 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.contare.Main</mainClass>
                                 </transformer>
+                                <!-- keep service files (safe for some libraries) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
+                            <!-- optional: ensure dependencies are included -->
+                            <artifactSet>
+                                <includes>
+                                    <include>*:*</include>
+                                </includes>
+                            </artifactSet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>${maven.install.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>install-local-creader</id>
+                        <phase>initialize</phase>
+                        <goals><goal>install-file</goal></goals>
+                        <configuration>
+                            <file>${project.basedir}/libs/CReader.jar</file>
+                            <groupId>com.rfid</groupId>
+                            <artifactId>creader</artifactId>
+                            <version>1.0</version>
+                            <packaging>jar</packaging>
                         </configuration>
                     </execution>
                 </executions>

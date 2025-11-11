@@ -1,10 +1,8 @@
 package com.contare.chafon;
 
 import com.contare.core.mappers.UHFInformationMapper;
-import com.rfid.BaseReader;
-import com.rfid.ReaderParameter;
-import com.rfid.TagCallback;
-import com.rfid.Utils;
+import com.rfid.*;
+import lombok.extern.slf4j.Slf4j;
 import org.jboss.logging.Logger;
 
 import java.util.List;
@@ -12,7 +10,9 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
 
+@Slf4j
 public class ChafonReader {
 
     private static final Logger logger = Logger.getLogger(ChafonReader.class);
@@ -92,10 +92,20 @@ public class ChafonReader {
         }
     }
 
+    /**
+     * Set the query parameter used when inventory is enabled.
+     *
+     * @param param - query parameter
+     */
     public void SetInventoryParameter(final ReaderParameter param) {
         this.param = param;
     }
 
+    /**
+     * Get the query parameter used in inventory.
+     *
+     * @return ReaderParameter object
+     */
     public ReaderParameter GetInventoryParameter() {
         return this.param;
     }
@@ -189,28 +199,28 @@ public class ChafonReader {
     }
 
     /**
-     * Chinese band 2:  Fs = 920.125 + N * 0.25 (MHz) where N ∈ [0, 19].
-     * US band:         Fs = 902.75 + N * 0.5 (MHz) where N ∈ [0,49].
-     * Korean band:     Fs = 917.1 + N * 0.2 (MHz) where N ∈ [0, 31].
-     * EU band:         Fs = 865.1 + N*0.2(MHz) where N ∈ [0, 14].
-     * Ukraine band:    Fs = 868.0 + N*0.1(MHz) where N ∈ [0, 6].
-     * Peru band:       Fs = 916.2 + N*0.9(MHz) where N ∈ [0, 11].
-     * Chinese band 1:  Fs = 840.125 + N * 0.25 (MHz) where N ∈ [0, 19].
-     * EU3 band:        Fs = 865.7 + N * 0.6(MHz) where N ∈ [0, 3].
-     * US band 3:       Fs = 902 + N * 0.5 (MHz) where N ∈ [0,52].
-     * Taiwan band:     Fs = 922.25 + N * 0.5 (MHz) where N ∈ [0, 11].
+     * Set the working frequency band of the reader.
      *
-     * @param band
-     * @param maxfre
-     * @param minfre
+     * @param band   - 1 byte, spectrum band.
+     *               1 = Chinese band 2
+     *               2 = US band
+     *               3 = Korean band
+     *               4 = EU band
+     *               8 = Chinese band 1
+     * @param maxfre - indicates the current maximum frequency of the reader's operation.
+     * @param minfre - indicates the current minimum frequency at which the current reader works.
      * @return 0x00 if successful, else return error code.
      */
-    private int SetRegion(final int band, final int maxfre, final int minfre) {
+    public int SetRegion(final int band, final int maxfre, final int minfre) {
         return reader.SetRegion(param.GetAddress(), band, maxfre, minfre);
     }
 
     /**
-     * Set frequency by preset name (e.g. "US", "BRAZIL_A", "BRAZIL_B", "EU", "CHINESE_2").
+     * Overload: SetRegion
+     * Set the working frequency band of the reader.
+     *
+     * @param value - frequency object
+     * @return true if successful, else false.
      */
     public boolean SetFrequency(final Frequency value) {
         final long start = System.currentTimeMillis();
@@ -244,7 +254,7 @@ public class ChafonReader {
      *                such as 0x0009, binary is 00000000 00001001, indicating antenna 1 and antenna 4.
      * @return 0x00 if successful, else return error code.
      */
-    private int SetAntenna(final int SetOnce, int AntCfg) {
+    public int SetAntenna(final int SetOnce, int AntCfg) {
         int result = 0;
         if (antennas > 4) {
             byte AntCfg1 = (byte) (AntCfg >> 8);
@@ -267,30 +277,61 @@ public class ChafonReader {
         return result;
     }
 
-    public boolean SetAntenna(final int antenna, final boolean enabled, final boolean persist) throws ChafonDeviceException {
-        if (antenna < 1 || antenna > antennas) {
-            throw new IllegalArgumentException(String.format("Antenna must be between 1 and %d.", antennas));
-        }
+    /**
+     * Enable or disable a single antenna.
+     *
+     * @param pos     - antenna position (1 - 4)
+     * @param enabled - true = enable, false = disable
+     * @param persist - true = save across power cycles, false = temporary
+     * @return true on success (SDK returned 0x00), false on SDK error.
+     */
+    public boolean SetAntenna(final int pos, final boolean enabled, final boolean persist) {
         try {
-            final int setOnce = persist ? 0 : 1; // 0 = save across power-off, 1 = do NOT save
+            if (pos < 1 || pos > antennas) {
+                throw new IllegalArgumentException("Antenna position must be between 1 and " + antennas + ", but received " + pos);
+            }
 
-            // Read current mask from device (replace with your SDK call)
-            final UHFInformation info = GetUHFInformation();
-            final int currentMask = info.getAntennaMask();
+            final int bit = 1 << (pos - 1);
 
-            final int bit = 1 << (antenna - 1);
-            final int newMask = enabled ? (currentMask | bit) : (currentMask & ~bit);
+            int antMask = GetAntennaMask();
+            if (antMask == 255) {
+                throw ChafonDeviceException.of("Unabled to obtain antenna mask");
+            }
+            logger.debugf("Antenna pos = %d, enabled = %b, bit = %d, mask = 0x%08X, binary = %s", pos, enabled, bit, antMask, Integer.toBinaryString(antMask));
 
-            final int result = this.SetAntenna(setOnce, newMask);
+            // Build AntCfg to pass to SDK: use full mask (up to 16 bits).
+            // The SDK method will internally branch on antenna count (<=4 / >4) as needed.
+            if (enabled) {
+                antMask |= bit;
+            } else {
+                antMask &= ~bit;
+            }
+
+            logger.debugf("Antenna pos = %d, enabled = %b, bit = %d, mask = 0x%08X, binary = %s", pos, enabled, bit, antMask, Integer.toBinaryString(antMask));
+
+            // SDK SetOnce semantics: 0 -> persist, 1 -> temporary
+            final int setOnce = persist ? 0 : 1;
+
+            final int result = this.SetAntenna(setOnce, antMask);
             if (result != 0x00) {
                 throw ChafonDeviceException.of(result);
             }
             return true;
+        } catch (IllegalArgumentException e) {
+            logger.error(e.getMessage(), e);
         } catch (ChafonDeviceException e) {
             logger.error("Error setting antenna.", e);
-            return false;
         }
+        return false;
+    }
 
+    public boolean SetAntenna(final int pos, final boolean enabled) {
+        return SetAntenna(pos, enabled, true);
+    }
+
+    public int GetAntennaMask() {
+        final UHFInformation info = GetUHFInformation();
+        return (info != null) ? info.getAntennaMask() : 255;
     }
 
     /**
@@ -304,7 +345,7 @@ public class ChafonReader {
     }
 
     /**
-     * Enable beep sound notification when device read a tag.
+     * Enable beep sound notification when the device read a tag.
      *
      * @param enable - true to enable beep sound notification, false to disable beep sound notification.
      * @return true if beep sound notification changed.
@@ -331,21 +372,21 @@ public class ChafonReader {
      * @return 0x00 if success, else return error code.
      */
     public int SetRfPowerByAnt(final byte[] Power) {
-        return (Power.length != antennas) ? 255 : reader.SetRfPowerByAnt(param.GetAddress(), Power);
+        return (Power.length != antennas) ? 0xFF : reader.SetRfPowerByAnt(param.GetAddress(), Power);
     }
 
     public boolean SetRfPowerByAntenna(final int[] power) {
-        if (power == null) {
-            throw new IllegalArgumentException("Antenna power must not be null.");
-        }
-
-        if (power.length > antennas) {
-            throw new IllegalArgumentException("Antenna length must be <= number of antennas (" + antennas + ")");
-        }
-
         final long start = System.currentTimeMillis();
 
         try {
+            if (power == null) {
+                throw new IllegalArgumentException("Antenna power must not be null.");
+            }
+
+            if (power.length > antennas) {
+                throw new IllegalArgumentException("Antenna length must be <= number of antennas (" + antennas + ")");
+            }
+
             // Create a array power sized to the device's antenna count.
             final byte[] array = new byte[antennas];
 
@@ -367,10 +408,12 @@ public class ChafonReader {
                 throw ChafonDeviceException.of(result);
             }
             return true;
+        } catch (IllegalArgumentException e) {
+            logger.error(e.getMessage(), e);
         } catch (ChafonDeviceException e) {
             logger.errorf(e, "Error setting antenna power. (%d ms)", System.currentTimeMillis() - start);
-            return false;
         }
+        return false;
     }
 
     /**
@@ -410,6 +453,12 @@ public class ChafonReader {
         return reader.ConfigDRM(param.GetAddress(), DRM);
     }
 
+    /**
+     * Used to set the pick-up time of the relay.
+     *
+     * @param RelayTime - Relay pick-up time, range 1 ~ 255. Unit 50 ms.
+     * @return 0x00 if
+     */
     public int SetRelay(final int RelayTime) {
         return reader.SetRelay(param.GetAddress(), (byte) RelayTime);
     }
@@ -465,20 +514,114 @@ public class ChafonReader {
         }
     }
 
-    public int MeasureReturnLoss(final byte[] TestFreq, final byte Ant, final byte[] ReturnLoss) {
+    /**
+     * Command used to measure the return loss of the antenna port.
+     *
+     * @param TestFreq   - 4 bytes, measure the frequency used, in KHz, with the high byte first. The frequency must be a multiple of 125KHz or 100KHz, with the high byte first
+     * @param Ant        - Measure the antenna port, 0~15 represent antenna 1~antenna 16 respectively
+     * @param ReturnLoss - 1 byte, the measurement result of the return loss value, in dB.
+     * @return 0x00 if successful, else returns an error code.
+     */
+    private int MeasureReturnLoss(final byte[] TestFreq, final byte Ant, final byte[] ReturnLoss) {
         return reader.MeasureReturnLoss(param.GetAddress(), TestFreq, Ant, ReturnLoss);
     }
 
+    public void MeasureReturnLoss() {
+        final long start = System.currentTimeMillis();
+        try {
+            final byte[] freq = new byte[4];
+            final byte ant = 0x00;
+            final byte[] loss = new byte[1];
+            final int result = this.MeasureReturnLoss(freq, ant, loss);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            logger.debugf("MeasureReturnLoss returned (%d ms)", System.currentTimeMillis() - start);
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error getting MeasureReturnLoss. (%d ms)", System.currentTimeMillis() - start);
+        }
+    }
+
+    /**
+     * Command is used to set the power used when writing tags.
+     *
+     * @param WritePower - Write power parameter, the highest bit 7 enable flag, 0-not enabled; 1-enabled.
+     *                   Bit0~bit6 represent the write power value, the range is 0~33, and the unit is dbm.
+     * @return 0x00 if successful, else returns an error code.
+     */
     public int SetWritePower(final byte WritePower) {
         return reader.SetWritePower(param.GetAddress(), WritePower);
     }
 
+    public boolean SetWritePower(final int value, final boolean enabled) {
+        try {
+            if (value < MIN_POWER_DBM || value > MAX_POWER_DBM) {
+                throw new IllegalArgumentException("Power must be between " + MIN_POWER_DBM + " and " + MAX_POWER_DBM + " but received " + value);
+            }
+            // Bits 0..6 = power, bit7 = enabled flag
+            final int packed = (value & 0x7F) | (enabled ? 0x80 : 0x00);
+            final byte writePowerByte = (byte) (packed & 0xFF);
+            final int result = this.SetWritePower((byte) 0);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (IllegalArgumentException e) {
+            logger.error(e.getMessage(), e);
+        } catch (ChafonDeviceException e) {
+            logger.errorf(e, "Error getting write power to %s.", value);
+        }
+        return false;
+    }
+
+    /**
+     * Command used to read the power used when writing tags.
+     *
+     * @param WritePower - 1 byte, write power parameter, the highest bit 7 enable flag, 0-not enabled; 1-enabled.
+     *                   Bit0~bit6 represent the write power value, the range is 0~33, and the unit is dbm.
+     * @return 0x00 if success, else return an error code.
+     */
     public int GetWritePower(final byte[] WritePower) {
         return reader.GetWritePower(param.GetAddress(), WritePower);
     }
 
+    public int GetWritePower() {
+        try {
+            final byte[] WritePower = new byte[1];
+            final int result = this.GetWritePower(WritePower);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+
+            return 0x00;
+        } catch (ChafonDeviceException e) {
+            logger.error("Error getting write power.", e);
+            return 0;
+        }
+    }
+
+    /**
+     * This command is used to set whether to enable the antenna detection function.
+     *
+     * @param CheckAnt - antenna detection switch, 0 = off, 1 = on
+     * @return 0x00 if successful, else return error code.
+     */
     public int SetCheckAnt(final byte CheckAnt) {
         return reader.SetCheckAnt(param.GetAddress(), CheckAnt);
+    }
+
+    public boolean SetCheckAnt(final boolean enable) {
+        try {
+            final int value = enable ? 1 : 0;
+            final int result = this.SetCheckAnt((byte) value);
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.error("Error getting check ant.", e);
+            return false;
+        }
     }
 
     public int SetCfgParameter(final byte opt, final byte cfgNum, final byte[] data, final int len) {
@@ -778,11 +921,37 @@ public class ChafonReader {
         return reader.WriteData_G2(param.GetAddress(), WNum, ENum, EPC, Mem, WordPtr, WriteData, Password, MaskMem, MaskAdr, MaskLen, MaskData, ErrorCode);
     }
 
+    /**
+     * Set the callback interface after the inventory is started, and the label data is returned through the callback interface.
+     *
+     * @param callback - tag's callback interface
+     */
     public void SetCallBack(final TagCallback callback) {
         this.callback = callback;
         this.reader.SetCallBack(callback);
     }
 
+    public void SetCallBack(final Consumer<ReadTag> onRead) {
+        this.SetCallBack(new TagCallback() {
+            @Override
+            public void tagCallback(final ReadTag readTag) {
+                onRead.accept(readTag);
+            }
+
+            @Override
+            public void StopReadCallback() {
+                logger.debugf("Callback stopped.");
+            }
+        });
+    }
+
+    /**
+     * Start to read tags.
+     *
+     * @param frequencies - list of frequencies to swap during process.
+     * @param intervalMs  - time between frequency swaps.
+     * @return 0x00 if started, else 0xFF if already running.
+     */
     public int StartRead(final List<Frequency> frequencies, final int intervalMs) {
         if (mThread != null) {
             return 0xFF;
@@ -908,6 +1077,9 @@ public class ChafonReader {
         return 0x00;
     }
 
+    /**
+     * Stop to read tags.
+     */
     public void StopRead() {
         if (mThread != null) {
             reader.StopImmediately(param.GetAddress());
@@ -916,6 +1088,40 @@ public class ChafonReader {
         }
     }
 
+    /**
+     * Check whether there is an electronic label that conforms to the agreement within the valid range.
+     *
+     * @param QValue        - 1 byte, 0~15: The initial Q value used when querying the EPC label,
+     * @param Session       - 1 byte, the session value used when querying the EPC tag.
+     *                      0x00: Session uses S0;
+     *                      0x01: Session uses S1;
+     *                      0x02: Session uses S2;
+     *                      0x03: Session uses S3.
+     *                      0xff: The reader automatically configures the session (only valid for EPC query)
+     *                      It is recommended to select
+     * @param AdrTID        - 1 byte, query the starting word address of the TID area.
+     * @param LenTID        - 1 byte, query the number of data words in the TID area, the range is 1~15, 0 means EPC query
+     * @param Target        - 1 byte, the Target value of the query tag. 0 – Target A; 1 – Target B.
+     * @param Ant           - 1 byte, the antenna number to be queried this time.
+     *                      0x80 – Antenna 1; 0x81 – Antenna 2;
+     *                      0x82 – Antenna 3; 0x83 – Antenna 4;
+     *                      0x84 – Antenna 5; 0x85 – Antenna 6;
+     *                      0x86 – Antenna 7; 0x87 – Antenna 8;
+     *                      0x88 – Antenna 9; 0x89 – Antenna 10;
+     *                      0x8A – Antenna 11; 0x8B – Antenna 12;
+     *                      0x8C – Antenna 13; 0x8D – Antenna 14;
+     *                      0x8A – Antenna 15; 0x8B – Antenna 16;
+     *                      The single-port reader is fixed at 0x80.
+     * @param Scantime      - 1 byte, the maximum operation time for inventory.
+     *                      The valid range of Scantime is 0 ~ 255, corresponding to (0 ~ 255)*100ms.
+     *                      For Scantime = 0, operation time is not limited.
+     * @param pOUcharIDList - The inquired tag data, the data block follows the format stated below:
+     *                      EPC/TID length + EPC/TID No. + RSSI.
+     *                      Data of multiple tags is formed by several identical data blocks in sequence
+     * @param pOUcharTagNum - The total amount of tag inquired during the current inventory.
+     * @param pListLen      - The total length of the received data stored in pEPCList.
+     * @return
+     */
     public int Inventory_G2(final byte QValue, final byte Session, final byte AdrTID, final byte LenTID, final byte Target, final byte Ant, final byte Scantime, final byte[] pOUcharIDList, final int[] pOUcharTagNum, final int[] pListLen) {
         return reader.Inventory_G2(param.GetAddress(), QValue, Session, AdrTID, LenTID, Target, Ant, Scantime, pOUcharIDList, pOUcharTagNum, pListLen);
     }

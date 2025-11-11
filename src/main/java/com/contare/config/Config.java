@@ -5,6 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Data
 public class Config {
 
@@ -29,7 +32,7 @@ public class Config {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty(value = "antennas")
-        private int antennas = 4;
+        private Antennas antennas = new Antennas();
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty(value = "verbose")
@@ -40,6 +43,21 @@ public class Config {
         private Frequency frequency = new Frequency();
 
     }
+
+    @Data
+    @NoArgsConstructor
+    public static class Antennas {
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "num")
+        private int num = 4;
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty(value = "map")
+        private Map<Integer, Boolean> map = new HashMap<>();
+
+    }
+
 
     @Data
     @NoArgsConstructor

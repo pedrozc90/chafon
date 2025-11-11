@@ -2,7 +2,13 @@ device:
     MACAddress: 2C-AC-44-04-97-01
     ip: 192.168.1.200
     port: 2022
-    antennas: 4
+    antennas:
+        num: 4
+        map:
+            1: true
+            2: false
+            3: true
+            4: false
     verbose: false
     frequency:
         interval: 1_000 # ms

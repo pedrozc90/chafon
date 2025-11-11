@@ -13,7 +13,9 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class Main {
@@ -22,27 +24,43 @@ public class Main {
 
     public static void main(final String[] args) {
         try {
-            // MUST run this before any logging occurs (including libraries).
-            SLF4JBridgeHandler.removeHandlersForRootLogger();
-            SLF4JBridgeHandler.install();
-            final Config cfg = ConfigLoader.load(args);
-            logger.infof("Loaded configurations:\n%s", ConfigLoader.toString(cfg));
-            run(cfg.getDevice());
+            setup();
+            final Config.Device cfg = loadConfigurations(args);
+            run(cfg);
         } catch (Exception e) {
             logger.errorf(e, "Failed to load configurations.");
             System.exit(1);
         }
     }
 
+    private static void setup() {
+        // setup logger
+        // MUST run this before any logging occurs (including libraries).
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+    }
+
+    private static Config.Device loadConfigurations(String[] args) throws Exception {
+        final Config cfg = ConfigLoader.load(args);
+        logger.infof("Loaded configurations:\n%s", ConfigLoader.toString(cfg));
+        return cfg.getDevice();
+    }
+
     private static void run(final Config.Device cfg) {
+        final int antennas = Math.max(cfg.getAntennas().getNum(), 4);
         final int interval = Math.max(cfg.getFrequency().getInterval(), 0);
         final List<Frequency> frequencies = Arrays.stream(cfg.getFrequency().getSpecs())
             .map(Config.FrequencySpec::toFrequency)
             .collect(Collectors.toList());
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        final Map<Integer, Boolean> map = cfg.getAntennas().getMap();
+        for (int i = 1; i < antennas; i++) {
+            if (!map.containsKey(i)) {
+                map.put(i, false);
+            }
+        }
 
-        final Options opts = new Options(cfg.getAddress(), cfg.getIp(), cfg.getPort(), cfg.getAntennas(), cfg.isVerbose(), frequencies, interval);
+        final Options opts = new Options(cfg.getAddress(), cfg.getIp(), cfg.getPort(), antennas, cfg.isVerbose(), frequencies, interval);
 
         try (final ChafonRfidDevice device = new ChafonRfidDevice()) {
             final boolean initialized = device.init(opts);
@@ -53,6 +71,12 @@ public class Main {
             final UHFInformation info = device.GetUHFInformation();
             logger.debugf("Device info: %s", info);
 
+            map.forEach((index, enabled) -> {
+                final boolean updated = device.SetAntennas(index, enabled);
+                if (updated) {
+                    logger.infof("Antenna %d %s", index, enabled ? "enabled" : "disabled");
+                }
+            });
 
             boolean started = device.start();
             if (started) {
@@ -61,13 +85,39 @@ public class Main {
                 logger.warnf("Device did not started");
             }
 
-            latch.await();
+            /*
+             * Wait for Ctrl+C (SIGINT) or other shutdown to stop the application.
+             * We use a CompletableFuture that we complete from a shutdown hook.
+             * When the future completes the main thread continues, the try-with-resources
+             * will close the device, and the application exits cleanly.
+             */
+            final CompletableFuture<Void> stopFuture = new CompletableFuture<>();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.info("Shutdown requested (Ctrl+C). Stopping...");
+
+                final Set<String> buffer = device.getBuffer();
+                for (String s : buffer) {
+                    logger.infof("EPC: %s", s);
+                }
+
+                // complete the future to unblock the main thread
+                stopFuture.complete(null);
+
+                // Note: avoid long-running work in shutdown hooks. The try-with-resources
+                // will close the device after stopFuture completes; if you need to signal
+                // the device to stop immediately you can call device.stop() here, but
+                // calling close in the main thread is preferred to keep shutdown-hook short.
+            }, "shutdown-hook"));
+
+            // Block here until stopFuture is completed by the shutdown hook.
+            stopFuture.join();
         } catch (RfidDeviceException e) {
             logger.errorf(e, "Device error.");
         } catch (IOException e) {
             logger.errorf(e, "IO error.");
-        } catch (InterruptedException e) {
-            logger.errorf(e, "Interrupted while waiting for device.");
+//        } catch (InterruptedException e) {
+//            logger.errorf(e, "Interrupted while waiting for device.");
         }
     }
 

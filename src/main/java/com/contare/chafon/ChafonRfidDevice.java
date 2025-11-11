@@ -6,10 +6,12 @@ import com.contare.core.mappers.TagMetadataMapper;
 import com.contare.core.objects.Options;
 import com.contare.core.objects.TagMetadata;
 import com.rfid.ReadTag;
-import com.rfid.TagCallback;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class ChafonRfidDevice implements RfidDevice {
 
@@ -17,6 +19,7 @@ public class ChafonRfidDevice implements RfidDevice {
 
     private Options opts;
     private ChafonReader reader;
+    private final Set<String> buffer = new HashSet<>();
 
     @Override
     public boolean init(final Options opts) {
@@ -24,27 +27,42 @@ public class ChafonRfidDevice implements RfidDevice {
 
         reader = new ChafonReader(opts.ip, opts.port, opts.antennas, opts.verbose);
 
-        reader.SetCallBack(new TagCallback() {
-            @Override
-            public void tagCallback(final ReadTag readTag) {
+        reader.SetCallBack((final ReadTag readTag) -> {
+            if (readTag != null) {
                 final TagMetadata tag = TagMetadataMapper.toDto(readTag);
                 logger.infof("Tag Received: %s", tag);
-            }
 
-            @Override
-            public void StopReadCallback() {
-                logger.info("Stop Read Callback");
+                if (buffer.add(tag.getEpc())) {
+                    logger.debugf("EPC %s added to buffer.", tag.getEpc());
+                }
+            } else {
+                logger.warn("Tag Received is empty");
             }
         });
 
-        final int result = reader.Connect();
+        return this.connect();
+    }
 
-        return (result == 0x00);
+    @Override
+    public boolean connect() {
+        try {
+            final int result = reader.Connect();
+            if (result != 0x00) {
+                throw ChafonDeviceException.of(result);
+            }
+            return true;
+        } catch (ChafonDeviceException e) {
+            logger.error("Failed to connect device", e);
+            return false;
+        }
     }
 
     @Override
     public boolean start() throws RfidDeviceException {
         logger.debug("Starting device");
+
+        // reset buffer
+        buffer.clear();
 
         final boolean fUpdated = reader.SetFrequency(Frequency.BRAZIL_A);
         if (fUpdated) {
@@ -100,8 +118,28 @@ public class ChafonRfidDevice implements RfidDevice {
     }
 
     // API
+    public Set<String> getBuffer() {
+        return Collections.unmodifiableSet(buffer);
+    }
+
     public UHFInformation GetUHFInformation() {
         return reader.GetUHFInformation();
+    }
+
+    public boolean SetPower(final int value) {
+        return reader.SetPower(value);
+    }
+
+    public boolean SetBeep(final boolean enabled) {
+        return reader.SetBeep(enabled);
+    }
+
+    public boolean SetAntennas(final int index, final boolean enabled) {
+        return reader.SetAntenna(index, enabled);
+    }
+
+    public byte[] GetGPIO() {
+        return reader.GetGPIOStatus();
     }
 
 }

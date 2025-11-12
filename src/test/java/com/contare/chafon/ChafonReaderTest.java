@@ -100,7 +100,7 @@ public class ChafonReaderTest {
     })
     public void SetFrequency(final int band, final double fStart, final double fStep, final int minIndex, final int maxIndex) {
         for (int index = minIndex; index <= maxIndex; index++) {
-            final Frequency frequency = new Frequency(band, fStart, fStep, minIndex, index, false);
+            final Frequency frequency = new Frequency(band, fStart, fStep, minIndex, index);
             final boolean updated = reader.SetFrequency(frequency);
             assertTrue(updated);
         }

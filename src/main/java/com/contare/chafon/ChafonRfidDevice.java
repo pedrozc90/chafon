@@ -21,6 +21,10 @@ public class ChafonRfidDevice implements RfidDevice {
     private ChafonReader reader;
     private final Set<String> buffer = new HashSet<>();
 
+    public Set<String> getBuffer() {
+        return Collections.unmodifiableSet(buffer);
+    }
+
     @Override
     public boolean init(final Options opts) {
         this.opts = opts;
@@ -64,7 +68,7 @@ public class ChafonRfidDevice implements RfidDevice {
         // reset buffer
         buffer.clear();
 
-        final boolean fUpdated = reader.SetFrequency(Frequency.BRAZIL_A);
+        final boolean fUpdated = reader.SetFrequency(Frequency.BRAZIL_1);
         if (fUpdated) {
             logger.debug("Device frequency has been updated");
         }
@@ -118,16 +122,20 @@ public class ChafonRfidDevice implements RfidDevice {
     }
 
     // API
-    public Set<String> getBuffer() {
-        return Collections.unmodifiableSet(buffer);
-    }
-
     public UHFInformation GetUHFInformation() {
         return reader.GetUHFInformation();
     }
 
+    public boolean SetFrequency(final Frequency freq) {
+        return reader.SetFrequency(freq);
+    }
+
     public boolean SetPower(final int value) {
         return reader.SetPower(value);
+    }
+
+    public boolean SetWritePower(final int value) {
+        return reader.SetWritePower(value, true);
     }
 
     public boolean SetBeep(final boolean enabled) {

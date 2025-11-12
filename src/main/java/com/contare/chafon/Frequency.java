@@ -6,47 +6,86 @@ import lombok.ToString;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * Chafon frequency object
+ * <p>
+ * Fn = fStart + (N * fStep)
+ */
 @Getter
 @ToString
 public class Frequency {
 
-    // Fn = Frequency_Inicial + N * Frequencia_Passo
-    public static final Frequency CHINESE_2 = new Frequency(1, 920.125, 0.25, 0, 19);
-    public static final Frequency US = new Frequency(2, 902.75, 0.5, 0, 49);
-    public static final Frequency KOREAN = new Frequency(3, 917.1, 0.2, 0, 31);
-    public static final Frequency EU = new Frequency(4, 865.1, 0.2, 0, 14);
-    public static final Frequency CHINESE_1 = new Frequency(8, 840.125, 0.25, 0, 19);
-    public static final Frequency ALL = new Frequency(0, 840, 2, 0, 60);
+    // DOCUMENTATION
+    public static final Frequency ALL = new Frequency(0, 840, 2, 0, 60);                  // 840.00 ~ 960.00 MHz
+    public static final Frequency CHINESE_2 = new Frequency(1, 920.125, 0.25, 0, 19);     // 920.125 ~ 924.875 MHz
+    public static final Frequency US = new Frequency(2, 902.75, 0.50, 0, 49);             // 902.75 ~ 927.25 MHz
+    public static final Frequency KOREAN = new Frequency(3, 917.10, 0.20, 0, 31);         // 917.10 ~ 923.30 MHz
+    public static final Frequency EU_LOWER = new Frequency(4, 865.10, 0.20, 0, 14);       // 865.10 ~ 867.90 MHz
+    public static final Frequency CHINESE_1 = new Frequency(8, 840.125, 0.25, 0, 19);     // 840.125 ~ 844.875 MHz
+    public static final Frequency US_3 = new Frequency(12, 902.00, 0.50, 0, 52);          // 902.00 ~ 928.00 MHz
+    public static final Frequency HONG_KONG = new Frequency(16, 920.25, 0.50, 0, 9);      // 920.25 ~ 924.75 MHz
+    public static final Frequency TAIWAN = new Frequency(17, 920.75, 0.50, 0, 13);        // 920.75 ~ 927.25 MHz
+    public static final Frequency EU_UPPER = new Frequency(18, 916.30, 1.20, 0, 2);       // 916.30 ~ 918.70 MHz (ETSI = European Telecommunications Standards Institute)
+    public static final Frequency MALAYSIA = new Frequency(19, 919.25, 0.50, 0, 7);       // 919.25 ~ 922.75 MHz
+    public static final Frequency THAILAND = new Frequency(22, 920.25, 0.50, 0, 9);       // 920.25 ~ 924.75 MHz
+    public static final Frequency SINGAPORE = new Frequency(23, 920.25, 0.50, 0, 9);      // 920.25 ~ 924.75 MHz
+    public static final Frequency AUSTRALIA = new Frequency(24, 920.25, 0.50, 0, 9);      // 920.25 ~ 924.75 MHz
+    public static final Frequency INDIA = new Frequency(25, 865.10, 0.60, 0, 3);          // 865.10 ~ 866.90 MHz
+    public static final Frequency ISRAEL = new Frequency(28, 916.25, 0.50, 0, 0);         // 916.25 ~ 916.25 MHz
+    public static final Frequency PERU = new Frequency(32, 916.25, 0.50, 0, 22);          // 916.25 ~ 927.25 MHz
+    public static final Frequency RUSSIA = new Frequency(33, 916.20, 1.20, 0, 3);         // 916.20 ~ 919.80 MHz
+    public static final Frequency SOUTH_AFRICA = new Frequency(34, 915.60, 0.20, 0, 16);  // 915.60 ~ 918.80 MHz
+    public static final Frequency PHILIPPINES = new Frequency(35, 918.25, 0.50, 0, 3);    // 918.25 ~ 919.75 MHz
+    // public static final Frequency BRAZIL_1 = new Frequency(21, 902.75, 0.50, 0, 9);    // 902.75 ~ 907.25 MHz
+    // public static final Frequency BRAZIL_2 = new Frequency(21, 910.25, 0.50, 10, 34);  // 910.25 ~ 927.25 MHz
+    // public static final Frequency URUGUAY = new Frequency(26, 916.25, 0.50, 0, 22);    // 916.25 ~ 927.25 MHz
+    // public static final Frequency VIETNAM = new Frequency(27, 918.75, 0.50, 0, 7);     // 918.75 ~ 922.25 MHz
+    // public static final Frequency INDONESIA_1 = new Frequency(29, 917.25, 0.50, 0, 0); // 917.25 ~ 917.25 MHz
+    // public static final Frequency INDONESIA_2 = new Frequency(29, 919.75, 0.50, 1, 3); // 920.25 ~ 921.75 MHz
+    // public static final Frequency NEW_ZEALAND = new Frequency(30, 922.25, 0.50, 0, 9); // 922.25 ~ 926.75 MHz
+    // public static final Frequency JAPAN_2 = new Frequency(31, 916.80, 1.20, 0, 3);     // 916.80 ~ 920.40 MHz
+    // public static final Frequency UKRAINE = new Frequency(-1, 868.00, 0.10, 0, 6);     // 868.00 ~ 868.60 MHz
+    // public static final Frequency PERU = new Frequency(-1, 916.20, 0.90, 0, 11);       // 916.20 ~ 926.10 MHz
+    // public static final Frequency EU_3 = new Frequency(-1, 865.70, 0.60, 0, 3);        // 865.70 ~ 867.50 MHz
 
-    public static final Frequency BRAZIL_A = new Frequency(2, 902.75, 0.5, 0, 9, false); // 902 ~ 907.5 MHz
-    public static final Frequency BRAZIL_B = new Frequency(2, 902.75, 0.5, 25, 49, false); // 915 ~ 927.75 MHz
+    // CUSTOM
+    public static final Frequency BRAZIL_1 = new Frequency(2, 902.75, 0.5, 0, 9); // 902 ~ 907.5 MHz
+    public static final Frequency BRAZIL_2 = new Frequency(2, 902.75, 0.5, 25, 49); // 915 ~ 927.75 MHz
 
     private static final Set<Frequency> _set = Set.of(
-        Frequency.US,
-        Frequency.EU,
-        Frequency.KOREAN,
-        Frequency.CHINESE_1,
-        Frequency.CHINESE_2
+        US,
+        EU_LOWER,
+        KOREAN,
+        CHINESE_1,
+        CHINESE_2,
+        HONG_KONG,
+        TAIWAN,
+        MALAYSIA,
+        THAILAND,
+        SINGAPORE,
+        AUSTRALIA,
+        INDIA,
+        ISRAEL,
+        PERU,
+        RUSSIA,
+        SOUTH_AFRICA,
+        PHILIPPINES,
+        US_3,
+        EU_UPPER
     );
 
-    private final int band;
-    private final double fStartMHz;
-    private final double stepMHz;
-    private final int minIndex;
-    private final int maxIndex;
-    private final boolean _default;
+    private final int band;             // frequency band (1 .. ?), each band represents a frequency function like Fn = fStart + (N * fStep) where N in [minIndex, maxIndex].
+    private final double fStartMHz;     // frequency start (MHz)
+    private final double stepMHz;       // frequency step (MHz)
+    private final int minIndex;         // minimum index (inclusive)
+    private final int maxIndex;         // maximum index (inclusive)
 
-    private Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex) {
-        this(band, fStartMHz, stepMHz, minIndex, maxIndex, true);
-    }
-
-    public Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex, final boolean _default) {
+    public Frequency(int band, double fStartMHz, double stepMHz, int minIndex, int maxIndex) {
         this.band = band;
         this.fStartMHz = fStartMHz;
         this.stepMHz = stepMHz;
         this.minIndex = minIndex;
         this.maxIndex = maxIndex;
-        this._default = _default;
     }
 
     public double getMinFrequency() {
@@ -95,16 +134,14 @@ public class Frequency {
         int minIndex = 0, maxIndex = 0;
 
         for (Frequency row : _set) {
-            if (row._default) {
-                int[] idx = row.indicesForRange(minMHz, maxMHz);
-                if (idx == null) continue;
-                int count = idx[1] - idx[0] + 1;
-                if (count > bestCount) {
-                    bestCount = count;
-                    match = row;
-                    minIndex = idx[0];
-                    maxIndex = idx[1];
-                }
+            int[] idx = row.indicesForRange(minMHz, maxMHz);
+            if (idx == null) continue;
+            int count = idx[1] - idx[0] + 1;
+            if (count > bestCount) {
+                bestCount = count;
+                match = row;
+                minIndex = idx[0];
+                maxIndex = idx[1];
             }
         }
 
@@ -135,7 +172,7 @@ public class Frequency {
         if (ref == null) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "No single band supports any channel inside band %d", band));
         }
-        return new Frequency(band, ref.fStartMHz, ref.stepMHz, minIndex, maxIndex, false);
+        return new Frequency(band, ref.fStartMHz, ref.stepMHz, minIndex, maxIndex);
     }
 
 }

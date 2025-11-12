@@ -19,7 +19,7 @@ public class FrequencyTest {
         assertEquals(902.75, frequency.getMinFrequency());
         assertEquals(907.25, frequency.getMaxFrequency());
 
-        assertEquals(Frequency.BRAZIL_A, frequency);
+        assertEquals(Frequency.BRAZIL_1, frequency);
     }
 
     @Test

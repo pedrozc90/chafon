@@ -25,41 +25,21 @@
     <dependencies>
         <dependency>
             <groupId>com.rfid</groupId>
-            <artifactId>creader</artifactId>
+            <artifactId>uhfe</artifactId>
             <version>1.0</version>
+        </dependency>
+
+        <!-- Logback -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.21</version>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
             <version>3.6.1.Final</version>
-        </dependency>
-
-        <!-- SLF4J API -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
-        </dependency>
-
-        <!-- Logback runtime (the actual logger) -->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.5.13</version>
-        </dependency>
-
-        <!-- Optional but recommended: route java.util.logging -> SLF4J/Logback -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jul-to-slf4j</artifactId>
-            <version>1.7.36</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.36</version>
         </dependency>
 
         <!-- Jackson YAML for YAML -> POJO -->
@@ -140,15 +120,19 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.contare.Main</mainClass>
                                 </transformer>
                                 <!-- keep service files (safe for some libraries) -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <!-- optional: ensure dependencies are included -->
                             <artifactSet>
@@ -169,12 +153,14 @@
                     <execution>
                         <id>install-local-creader</id>
                         <phase>initialize</phase>
-                        <goals><goal>install-file</goal></goals>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
                         <configuration>
-                            <file>${project.basedir}/libs/CReader.jar</file>
+                            <file>${project.basedir}/libs/UHFEx10.jar</file>
                             <groupId>com.rfid</groupId>
-                            <artifactId>creader</artifactId>
-                            <version>1.0</version>
+                            <artifactId>uhfe</artifactId>
+                            <version>1.0.0.1</version>
                             <packaging>jar</packaging>
                         </configuration>
                     </execution>

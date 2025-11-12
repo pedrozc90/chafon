@@ -1,6 +1,7 @@
 package com.contare;
 
 import com.contare.chafon.ChafonRfidDevice;
+import com.contare.chafon.ChafonUHFDevice;
 import com.contare.chafon.Frequency;
 import com.contare.chafon.UHFInformation;
 import com.contare.config.Config;
@@ -17,9 +18,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-public class Main {
+public class Main2 {
 
-    private static final Logger logger = Logger.getLogger(Main.class);
+    private static final Logger logger = Logger.getLogger(Main2.class);
 
     public static void main(final String[] args) {
         try {
@@ -33,12 +34,19 @@ public class Main {
 
     private static Config.Device loadConfigurations(String[] args) throws Exception {
         final Config cfg = ConfigLoader.load(args);
-        logger.infof("Loaded configurations:\n%s", ConfigLoader.toString(cfg));
+        logger.info("Loaded configurations");
         return cfg.getDevice();
     }
 
     private static void run(final Config.Device cfg) {
+        logger.infof("Verbose: %b", cfg.isVerbose());
+        logger.infof("Device IP: %s", cfg.getIp());
+        logger.infof("Device Port: %d", cfg.getPort());
+
         final int antennas = Math.max(cfg.getAntennas().getNum(), 4);
+        logger.infof("Device Antennas: %d", antennas);
+
+
         final int interval = Math.max(cfg.getFrequency().getInterval(), 0);
         final List<Frequency> frequencies = Arrays.stream(cfg.getFrequency().getSpecs())
             .map(Config.FrequencySpec::toFrequency)
@@ -53,15 +61,10 @@ public class Main {
 
         final Options opts = new Options(cfg.getAddress(), cfg.getIp(), cfg.getPort(), antennas, cfg.isVerbose(), frequencies, interval);
 
-        try (final ChafonRfidDevice device = new ChafonRfidDevice()) {
+        try (final ChafonUHFDevice device = new ChafonUHFDevice()) {
             final boolean initialized = device.init(opts);
             if (initialized) {
                 logger.debugf("Device connected opts: %s", opts);
-            }
-
-            boolean checkAnt = device.SetCheckAnt(true);
-            if (checkAnt) {
-                logger.debug("Check Ant enabled");
             }
 
             final boolean fUpdated = device.SetFrequency(Frequency.BRAZIL);

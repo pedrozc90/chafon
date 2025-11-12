@@ -26,6 +26,7 @@ public class ChafonReader {
     private volatile boolean mWorking = true;
     private byte[] pOUcharIDList = new byte[25600];
     private volatile int NoCardCount = 0;
+    private String sdkVersion = "1.0.0.1";
 
     private BaseReader reader = null;
     public boolean isConnect = false;
@@ -68,6 +69,10 @@ public class ChafonReader {
         this.reader = new BaseReader(ip, antennas);
 
         this.isConnect = false;
+    }
+
+    public String GetSdkVersion() {
+        return this.sdkVersion;
     }
 
     public int Connect() {
@@ -129,8 +134,7 @@ public class ChafonReader {
         byte[] ScanTime = new byte[1];
         byte[] OutputRep = new byte[1];
         byte[] CheckAnt = new byte[1];
-        byte[] ComAddr = new byte[1];
-        ComAddr[0] = -1;
+        byte[] ComAddr = new byte[]{-1};
         byte[] AntCfg0 = new byte[1];
         byte[] AntCfg1 = new byte[1];
         int result = reader.GetReaderInformation(ComAddr, Version, ReaderType, TrType, band, MaxFre, MinFre, Power, ScanTime, AntCfg0, BeepEn, AntCfg1, CheckAnt);
@@ -138,8 +142,7 @@ public class ChafonReader {
             Ant[0] = ((AntCfg1[0] & 255) << 8) + (AntCfg0[0] & 255);
             param.SetAddress(ComAddr[0]);
             param.SetAntenna(Ant[0] & 255);
-            byte[] Pro = new byte[1];
-            Pro[0] = 0;
+            byte[] var17 = new byte[1];
         }
 
         return result;
@@ -216,6 +219,19 @@ public class ChafonReader {
     }
 
     /**
+     * Set the working frequency band of the reader.
+     *
+     * @param opt    - byte, 0 = save, 1 = not save
+     * @param band   - byte, frequency band
+     * @param maxfre - byte, maximum frequency point
+     * @param minfre - byte, minimum frequency point
+     * @return 0x00 if successful, else return error code.
+     */
+    public int ExtSetRegion(int opt, int band, int maxfre, int minfre) {
+        return this.reader.ExtSetRegion(this.param.GetAddress(), opt, band, maxfre, minfre);
+    }
+
+    /**
      * Overload: SetRegion
      * Set the working frequency band of the reader.
      *
@@ -225,11 +241,12 @@ public class ChafonReader {
     public boolean SetFrequency(final Frequency value) {
         final long start = System.currentTimeMillis();
         try {
+            final int opt = 0; // save
             final int bandId = value.getBand();
             final int maxIndex = value.getMaxIndex();
             final int minIndex = value.getMinIndex();
 
-            final int result = this.SetRegion(bandId, maxIndex, minIndex);
+            final int result = this.ExtSetRegion(opt, bandId, maxIndex, minIndex);
             if (result != 0x00) {
                 throw ChafonDeviceException.of(result);
             }
@@ -740,7 +757,7 @@ public class ChafonReader {
                     byte MaskLen = (byte) (TIDStr.length() * 4);
                     byte[] MaskData = new byte[TIDStr.length()];
                     System.arraycopy(TID, 0, MaskData, 0, TID.length);
-                    byte MaskFlag = 1;
+                    byte MaskFlag = 0;
                     byte[] ErrorCode = new byte[1];
                     return reader.WriteData_G2(param.GetAddress(), WNum, ENum, EPC, Mem, WordPtr, data, Password, MaskMem, MaskAdr, MaskLen, MaskData, ErrorCode);
                 } else {
@@ -845,7 +862,7 @@ public class ChafonReader {
                     byte MaskLen = (byte) (TIDStr.length() * 4);
                     byte[] MaskData = new byte[TIDStr.length()];
                     System.arraycopy(TID, 0, MaskData, 0, TID.length);
-                    byte MaskFlag = 1;
+                    byte MaskFlag = 0;
                     byte[] Errorcode = new byte[1];
                     byte Mem = 1;
                     byte WordPtr = 1;
@@ -980,9 +997,10 @@ public class ChafonReader {
                         NoCardCount = 0;
                     }
 
-                    int result = 48;
+                    int result = 0;
                     if (param.GetReadType() == 0) {
                         byte TIDlen = 0;
+                        byte MaskMem = 0;
                         reader.Inventory_G2(param.GetAddress(), (byte) param.GetQValue(), (byte) param.GetSession(), (byte) param.GetTidPtr(), TIDlen, Target, Ant, (byte) param.GetScanTime(), pOUcharIDList, pOUcharTagNum, pListLen);
                     } else if (param.GetReadType() == 1) {
                         byte TIDlen = (byte) param.GetTidLen();
@@ -1007,7 +1025,7 @@ public class ChafonReader {
                             ChafonReader var10000 = ChafonReader.this;
                             var10000.NoCardCount = var10000.NoCardCount + 1;
                             int reTryTime = antennas;
-                            if (NoCardCount > reTryTime) {
+                            if (NoCardCount > reTryTime && param.GetTarget() == 2) {
                                 Target = (byte) (1 - Target);
                                 NoCardCount = 0;
                             }
@@ -1073,12 +1091,11 @@ public class ChafonReader {
                 }
             }
 
-            mThread = null;
-            LockSupport.unpark(mainThread);
             if (callback != null) {
                 callback.StopReadCallback();
             }
 
+            mThread = null;
         });
         this.mThread.start();
         return 0x00;
@@ -1091,7 +1108,6 @@ public class ChafonReader {
         if (mThread != null) {
             reader.StopImmediately(param.GetAddress());
             mWorking = false;
-            LockSupport.park();
         }
     }
 
@@ -1135,6 +1151,10 @@ public class ChafonReader {
 
     public int Inventory_Mix(final byte QValue, final byte Session, final byte MaskMem, final byte[] MaskAdr, final byte MaskLen, final byte[] MaskData, final byte MaskFlag, final byte ReadMem, final byte[] ReadAdr, final byte ReadLen, final byte[] Pwd, final byte Target, final byte Ant, final byte Scantime, final byte[] pOUcharIDList, final int[] pOUcharTagNum, final int[] pListLen) {
         return reader.Inventory_Mix(param.GetAddress(), QValue, Session, MaskMem, MaskAdr, MaskLen, MaskData, MaskFlag, ReadMem, ReadAdr, ReadLen, Pwd, Target, Ant, Scantime, pOUcharIDList, pOUcharTagNum, pListLen);
+    }
+
+    public int SetExtProfile(final byte Opt, final int[] Profile) {
+        return reader.SetExtProfile(param.GetAddress(), Opt, Profile);
     }
 
 }

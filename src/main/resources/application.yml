@@ -6,17 +6,10 @@ device:
         num: 4
         map:
             1: true
-            2: false
-            3: true
-            4: false
     verbose: false
     frequency:
         interval: 1_000 # ms
         specs:
-            -   band: 1
+            -   band: 21
                 minN: 0
-                maxN: 18
-            -   min: 902
-                max: 907.5
-            -   min: 915
-                max: 927.75
+                maxN: 34

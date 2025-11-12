@@ -68,10 +68,7 @@ public class ChafonRfidDevice implements RfidDevice {
         // reset buffer
         buffer.clear();
 
-        final boolean fUpdated = reader.SetFrequency(Frequency.BRAZIL_1);
-        if (fUpdated) {
-            logger.debug("Device frequency has been updated");
-        }
+
 
         final boolean pUpdated = reader.SetPower(30);
         if (pUpdated) {
@@ -140,6 +137,10 @@ public class ChafonRfidDevice implements RfidDevice {
 
     public boolean SetBeep(final boolean enabled) {
         return reader.SetBeep(enabled);
+    }
+
+    public boolean SetCheckAnt(final boolean enabled) {
+        return reader.SetCheckAnt(enabled);
     }
 
     public boolean SetAntennas(final int index, final boolean enabled) {

@@ -64,20 +64,6 @@ public class Config {
     public static class Frequency {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonProperty(value = "interval")
-        private int interval;
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonProperty(value = "specs")
-        private FrequencySpec[] specs;
-
-    }
-
-    @Data
-    @NoArgsConstructor
-    public static class FrequencySpec {
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty(value = "band")
         private Integer band;
 

@@ -4,6 +4,7 @@ import com.contare.chafon.Frequency;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -26,6 +27,10 @@ public class Options {
         this.verbose = verbose;
         this.frequencies = frequencies;
         this.interval = (interval != null) ? interval : 1_000;
+    }
+
+    public Options(final String address, final String ip, final Integer port, final Integer antennas, final boolean verbose) {
+        this(address, ip, port, antennas, verbose, Collections.emptyList(), 0);
     }
 
 }

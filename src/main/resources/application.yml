@@ -8,8 +8,6 @@ device:
             1: true
     verbose: false
     frequency:
-        interval: 1_000 # ms
-        specs:
-            -   band: 21
-                minN: 0
-                maxN: 34
+        band: 21
+        minN: 0
+        maxN: 34

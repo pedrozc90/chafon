@@ -12,6 +12,7 @@
     <!-- enable debug for your package if you want -->
     <logger name="com.contare" level="DEBUG" />
     <logger name="com.contare.chafon" level="DEBUG" />
+    <logger name="com.contare.core.mappers.UHFInformationMapper" level="INFO" />
 
     <root level="INFO">
         <appender-ref ref="CONSOLE" />

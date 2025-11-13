@@ -198,7 +198,7 @@ public class ChafonUHFDevice implements RfidDevice {
 
             // Log what we actually set
             final long elapsed = System.currentTimeMillis() - start;
-            logger.infof("SetRegion: band = %d, indices = %d .. %d, frequency=%.3f ~ %.3f MHz (%d ms)", bandId, minIndex, maxIndex, value.getMinFrequency(), value.getMaxFrequency(), elapsed);
+            logger.infof("Frequency changed to band = %d, indices = %d .. %d, frequency=%.3f ~ %.3f MHz (%d ms)", bandId, minIndex, maxIndex, value.getMinFrequency(), value.getMaxFrequency(), elapsed);
 
             return true;
         } catch (ChafonDeviceException e) {

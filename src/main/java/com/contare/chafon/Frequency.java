@@ -50,6 +50,7 @@ public class Frequency {
     public static final Frequency BRAZIL_2 = new Frequency(2, 902.75, 0.5, 25, 49); // 915 ~ 927.75 MHz
 
     private static final Set<Frequency> _set = Set.of(
+        ALL,
         CHINESE_2,
         US,
         KOREAN,
